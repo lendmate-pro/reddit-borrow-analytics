@@ -59,7 +59,39 @@
   }
 
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body { margin: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+
+  .quick-nav {
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    display: flex;
+    gap: 4px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    backdrop-filter: blur(6px);
+  }
+  .quick-nav a {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 7px;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .quick-nav a:hover { background: var(--series-1-wash); color: var(--text-primary); }
+  .quick-nav a.active { background: var(--series-1); color: #fff; }
   .viz-root {
     background: var(--page-plane);
     color: var(--text-primary);
@@ -115,8 +147,11 @@
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
+    transition: filter 0.15s ease, transform 0.1s ease;
   }
   .login-card button:hover { filter: brightness(0.94); }
+  .login-card button:active { transform: scale(0.98); }
+  .login-card { animation: fadeSlideUp 0.35s ease both; }
   .login-error { font-size: 12px; color: #d03b3b; min-height: 16px; margin: 10px 0 0; }
   header.page-header { margin-bottom: 18px; }
   h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
@@ -136,7 +171,7 @@
 
   .kpi-row {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 10px;
     margin-bottom: 20px;
   }
@@ -145,17 +180,27 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 14px 14px;
+    animation: fadeSlideUp 0.4s ease both;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
+  .stat-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: var(--series-1); }
   .stat-tile .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
   .stat-tile .value { font-size: 20px; font-weight: 600; color: var(--text-primary); }
 
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .card {
     background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 18px 20px;
     margin-bottom: 18px;
+    animation: fadeSlideUp 0.45s ease both;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
+  .card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
   .card h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
   .card .card-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; }
   .section-heading {
@@ -184,7 +229,9 @@
     color: var(--text-primary);
     min-width: 240px;
     font-family: inherit;
+    transition: border-color 0.15s ease;
   }
+  .filter-row input[type="search"]:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
   .filter-row select, select.range-select {
     background: var(--page-plane);
     border: 1px solid var(--border);
@@ -200,6 +247,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23898781' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
+    transition: border-color 0.15s ease;
   }
   .filter-row select:focus, select.range-select:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
   .filter-row .hint { font-size: 12px; color: var(--text-muted); }
@@ -220,13 +268,19 @@
   .trend-line-projected { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-dasharray: 5 4; stroke-linecap: round; opacity: 0.6; }
   .trend-dot-projected { fill: var(--surface-1); stroke: var(--series-1); stroke-width: 2; }
 
-  .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; }
+  .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; transform-box: fill-box; transform-origin: center; }
   .heat-cell.empty { fill: var(--gridline); }
   .heat-legend-row { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
   .heat-legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
 
-  .col-chart-bar { fill: var(--series-1); cursor: pointer; }
+  .col-chart-bar { fill: var(--series-1); cursor: pointer; transform-box: fill-box; transform-origin: bottom; }
   .col-chart-bar:hover { fill: var(--seq-500); }
+
+  @keyframes growBarX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes growBarY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  @keyframes cellPop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .bar-rect { transform-box: fill-box; transform-origin: left; }
 
   .tooltip {
     position: fixed;
@@ -277,9 +331,10 @@
     font-weight: 500;
     color: var(--text-primary);
   }
-  table.rank-table tbody tr { cursor: pointer; }
+  table.rank-table tbody tr { cursor: pointer; transition: background 0.12s ease; }
   table.rank-table tbody tr:hover { background: var(--series-1-wash); }
   table.rank-table tbody tr.expanded { background: var(--series-1-wash); }
+  .detail-panel { animation: fadeSlideUp 0.25s ease both; }
   .rank-num { color: var(--text-muted); font-size: 11.5px; margin-right: 6px; }
 
   .detail-panel-row td { padding: 0; border-bottom: 1px solid var(--gridline); }
@@ -321,7 +376,10 @@
     border-radius: 7px;
     cursor: pointer;
     font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   }
+  .top-n-toggle button:hover:not(.active) { background: var(--series-1-wash); color: var(--text-primary); }
+  .top-n-toggle button:active { transform: scale(0.96); }
   .top-n-toggle button.active { background: var(--series-1); color: #fff; border-color: var(--series-1); }
 
   .pagination-row {
@@ -343,6 +401,7 @@
     border-radius: 7px;
     cursor: pointer;
     font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
   }
   .pagination-row button:disabled { opacity: 0.4; cursor: default; }
   .pagination-row button:not(:disabled):hover { background: var(--series-1-wash); color: var(--text-primary); }
@@ -356,11 +415,7 @@
   footer.notes b { color: var(--text-secondary); }
 
   @media (max-width: 860px) {
-    .kpi-row { grid-template-columns: repeat(4, 1fr); }
     table.rank-table { font-size: 12px; }
-  }
-  @media (max-width: 560px) {
-    .kpi-row { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 
@@ -395,6 +450,9 @@
     function unlock() {
       gateEl.classList.add('hidden');
       rootEl.classList.remove('locked');
+      document.querySelectorAll('.wrap .card').forEach(function (el, i) {
+        el.style.animationDelay = Math.min(i * 35, 350) + 'ms';
+      });
     }
 
     try {
@@ -418,12 +476,20 @@
   })();
   </script>
   <div class="wrap">
-    <header class="page-header">
+    <header class="page-header" id="top">
       <h1>r/borrow Lender &amp; Borrower Analytics</h1>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 05, 2026 20:06 UTC</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 05, 2026 20:10 UTC</div>
     </header>
+
+    <nav class="quick-nav" id="quickNav">
+      <a href="#top">Overview</a>
+      <a href="#section-insights">Insights</a>
+      <a href="#section-lenders">Lenders</a>
+      <a href="#section-borrowers">Borrowers</a>
+      <a href="#section-pairs">Pairs</a>
+    </nav>
 
     <div class="card date-filter-card">
       <div class="filter-row" style="margin-bottom:0;">
@@ -455,7 +521,27 @@
       <div id="trendChart"></div>
     </div>
 
-    <div class="section-heading">Lenders</div>
+    <div class="section-heading" id="section-insights">Insights</div>
+
+    <div class="card">
+      <h2>When do loans get requested?</h2>
+      <p class="card-sub">Loan volume by day of week and hour of day (UTC), within the selected date range. Darker = busier.</p>
+      <div id="heatmapActivity"></div>
+    </div>
+
+    <div class="card">
+      <h2>Loan requests by day of month</h2>
+      <p class="card-sub">If borrowers are mostly covering rent or waiting on a paycheck, this tends to spike around the 1st and 15th.</p>
+      <div id="chartDayOfMonth"></div>
+    </div>
+
+    <div class="card">
+      <h2>Fee % by loan size</h2>
+      <p class="card-sub">Do smaller loans get charged a higher percentage fee than larger ones? Each cell is a count of loans in that size/fee combination (loans with an unparsed fee are excluded).</p>
+      <div id="heatmapFeeSize"></div>
+    </div>
+
+    <div class="section-heading" id="section-lenders">Lenders</div>
 
     <div class="card">
       <h2>Top lenders by number of loans funded</h2>
@@ -510,7 +596,7 @@
       <div class="pagination-row" id="pagination-lenders"></div>
     </div>
 
-    <div class="section-heading">Borrowers</div>
+    <div class="section-heading" id="section-borrowers">Borrowers</div>
 
     <div class="card">
       <h2>Top borrowers by number of loans taken</h2>
@@ -565,7 +651,7 @@
       <div class="pagination-row" id="pagination-borrowers"></div>
     </div>
 
-    <div class="section-heading">Lender ↔ Borrower Relationships</div>
+    <div class="section-heading" id="section-pairs">Lender ↔ Borrower Relationships</div>
 
     <div class="card">
       <h2>Strongest recurring lending relationships</h2>
@@ -611,26 +697,6 @@
         <tbody id="tbody-pairs"></tbody>
       </table>
       <div class="pagination-row" id="pagination-pairs"></div>
-    </div>
-
-    <div class="section-heading">Insights</div>
-
-    <div class="card">
-      <h2>When do loans get requested?</h2>
-      <p class="card-sub">Loan volume by day of week and hour of day (UTC), within the selected date range. Darker = busier.</p>
-      <div id="heatmapActivity"></div>
-    </div>
-
-    <div class="card">
-      <h2>Loan requests by day of month</h2>
-      <p class="card-sub">If borrowers are mostly covering rent or waiting on a paycheck, this tends to spike around the 1st and 15th.</p>
-      <div id="chartDayOfMonth"></div>
-    </div>
-
-    <div class="card">
-      <h2>Fee % by loan size</h2>
-      <p class="card-sub">Do smaller loans get charged a higher percentage fee than larger ones? Each cell is a count of loans in that size/fee combination (loans with an unparsed fee are excluded).</p>
-      <div id="heatmapFeeSize"></div>
     </div>
 
     <footer class="notes">
@@ -912,6 +978,7 @@
         rect.setAttribute('width', barW); rect.setAttribute('height', 18);
         rect.setAttribute('rx', 4);
         rect.setAttribute('class', 'bar-rect ' + opts.barHue);
+        rect.style.animation = `growBarX 0.4s ease both ${Math.min(i * 25, 300)}ms`;
         rect.addEventListener('pointermove', ev => {
           showTooltip(ev.clientX, ev.clientY, d.name, [
             [`${opts.entityWordCap} loans`, d.num_loans.toLocaleString()],
@@ -1144,6 +1211,7 @@
         rect.setAttribute('width', barW); rect.setAttribute('height', 18);
         rect.setAttribute('rx', 4);
         rect.setAttribute('class', 'bar-rect hue-1');
+        rect.style.animation = `growBarX 0.4s ease both ${Math.min(i * 25, 300)}ms`;
         rect.addEventListener('pointermove', ev => {
           showTooltip(ev.clientX, ev.clientY, `${d.lender} → ${d.borrower}`, [
             ['Loans together', d.count.toLocaleString()],
@@ -1314,26 +1382,40 @@
       `Confirmed loans funded, all lenders combined — ${RANGE_LABELS[currentRange]}`;
   }
 
+  function animateNumber(el, endValue, formatFn, duration = 700) {
+    const startTime = performance.now();
+    function tick(now) {
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = formatFn(endValue * eased);
+      if (progress < 1) requestAnimationFrame(tick);
+      else el.textContent = formatFn(endValue);
+    }
+    requestAnimationFrame(tick);
+  }
+
   function renderKpis() {
     const o = currentAgg.overall;
     const kpis = [
-      { label: 'Total loans funded', value: fmtNum(o.total_loans) },
-      { label: 'Total $ lent', value: fmtMoney(o.total_dollars) },
-      { label: 'Avg loan size', value: fmtMoney(o.avg_loan_size) },
-      { label: 'Avg fee / interest', value: fmtPct(o.avg_interest_pct) },
-      { label: 'Avg duration', value: fmtDays(o.avg_duration_days) + ' days' },
-      { label: 'Active lenders', value: fmtNum(o.unique_lenders) },
-      { label: 'Active borrowers', value: fmtNum(o.unique_borrowers) },
+      { label: 'Total loans funded', raw: o.total_loans, fmt: fmtNum },
+      { label: 'Total $ lent', raw: o.total_dollars, fmt: fmtMoney },
+      { label: 'Avg loan size', raw: o.avg_loan_size, fmt: fmtMoney },
+      { label: 'Avg fee / interest', raw: o.avg_interest_pct, fmt: fmtPct },
+      { label: 'Avg duration', raw: o.avg_duration_days, fmt: v => fmtDays(v) + ' days' },
+      { label: 'Active lenders', raw: o.unique_lenders, fmt: fmtNum },
+      { label: 'Active borrowers', raw: o.unique_borrowers, fmt: fmtNum },
     ];
     const kpiRow = document.getElementById('kpiRow');
     kpiRow.innerHTML = '';
-    kpis.forEach(k => {
+    kpis.forEach((k, i) => {
       const tile = document.createElement('div');
       tile.className = 'stat-tile';
+      tile.style.animationDelay = (i * 45) + 'ms';
       const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = k.label;
-      const val = document.createElement('div'); val.className = 'value'; val.textContent = k.value;
+      const val = document.createElement('div'); val.className = 'value';
       tile.appendChild(lab); tile.appendChild(val);
       kpiRow.appendChild(tile);
+      if (k.raw == null) { val.textContent = '—'; } else { animateNumber(val, k.raw, k.fmt); }
     });
   }
 
@@ -1353,9 +1435,9 @@
 
   function renderTrend() {
     const el = document.getElementById('trendChart');
-    const W = el.clientWidth || 1120, H = 200, PAD = { l: 40, r: 16, t: 12, b: 28 };
     const data = currentTrend;
     const projectedVal = showProjection ? computeProjection(data) : null;
+    const W = el.clientWidth || 1120, H = 200, PAD = { l: 40, r: projectedVal != null ? 34 : 16, t: 12, b: 28 };
     const plotCount = data.length + (projectedVal != null ? 1 : 0);
     const maxV = Math.max(1, ...data.map(d => d.loans), projectedVal || 0);
     const niceMax = Math.ceil(maxV / 100) * 100 || maxV + 1;
@@ -1459,6 +1541,7 @@
       svg.appendChild(pTxt);
     }
 
+    svg.style.animation = 'fadeIn 0.35s ease both';
     el.innerHTML = '';
     el.appendChild(svg);
   }
@@ -1524,6 +1607,7 @@
         rect.setAttribute('rx', 3);
         rect.setAttribute('class', 'heat-cell' + (count === 0 ? ' empty' : ''));
         if (count > 0) rect.style.fill = colorForIntensity(count, max);
+        rect.style.animation = `cellPop 0.3s ease both ${Math.min((row * 24 + hr) * 3, 350)}ms`;
         rect.addEventListener('pointermove', ev => {
           showTooltip(ev.clientX, ev.clientY, `${label}, ${hr}:00–${(hr + 1) % 24}:00 UTC`, [
             ['Loans requested', count.toLocaleString()],
@@ -1589,6 +1673,7 @@
       rect.setAttribute('height', Math.max(1, barH));
       rect.setAttribute('rx', 3);
       rect.setAttribute('class', 'col-chart-bar');
+      rect.style.animation = `growBarY 0.4s ease both ${Math.min(i * 10, 250)}ms`;
       rect.addEventListener('pointermove', ev => {
         showTooltip(ev.clientX, ev.clientY, `Day ${i + 1} of month`, [['Loans requested', count.toLocaleString()]]);
       });
@@ -1664,6 +1749,7 @@
         rect.setAttribute('rx', 3);
         rect.setAttribute('class', 'heat-cell' + (count === 0 ? ' empty' : ''));
         if (count > 0) rect.style.fill = colorForIntensity(count, max);
+        rect.style.animation = `cellPop 0.3s ease both ${(row * FEE_BUCKETS.length + col) * 20}ms`;
         rect.addEventListener('pointermove', ev => {
           showTooltip(ev.clientX, ev.clientY, `${sb.label} loans, ${fb.label} fee`, [
             ['Loan count', count.toLocaleString()],
@@ -1715,5 +1801,20 @@
     renderTrend(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize();
     renderHeatmapActivity(currentFiltered); renderDayOfMonth(currentFiltered); renderHeatmapFeeSize(currentFiltered);
   });
+
+  // ---------- Quick-nav active-section highlighting ----------
+  const navLinks = [...document.querySelectorAll('.quick-nav a')];
+  const navSections = navLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  if ('IntersectionObserver' in window && navSections.length) {
+    const navObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = '#' + entry.target.id;
+          navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
+        }
+      });
+    }, { rootMargin: '-15% 0px -75% 0px' });
+    navSections.forEach(s => navObserver.observe(s));
+  }
 })();
 </script>
