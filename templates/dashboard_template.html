@@ -252,6 +252,27 @@
   .filter-row select:focus, select.range-select:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
   .filter-row .hint { font-size: 12px; color: var(--text-muted); }
 
+  input[type="date"].range-select {
+    color-scheme: light dark;
+    padding: 7px 10px;
+    font-weight: 500;
+  }
+  input[type="date"].range-select:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  #customApply {
+    background: var(--series-1);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease, transform 0.1s ease;
+  }
+  #customApply:hover { filter: brightness(0.94); }
+  #customApply:active { transform: scale(0.97); }
+
   svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
   .bar-label-value { fill: var(--text-primary); font-weight: 600; }
   .bar-label-name { fill: var(--text-secondary); }
@@ -489,6 +510,7 @@
       <a href="#section-lenders">Lenders</a>
       <a href="#section-borrowers">Borrowers</a>
       <a href="#section-pairs">Pairs</a>
+      <a href="#section-loans">Loans</a>
     </nav>
 
     <div class="card date-filter-card">
@@ -501,7 +523,15 @@
           <option value="30">Last 1 month</option>
           <option value="90">Last 3 months</option>
           <option value="all" id="allRangeOption" selected>All time</option>
+          <option value="custom">Custom range…</option>
         </select>
+        <span id="customRangeControls" style="display:none; align-items:center; gap:8px;">
+          <label class="hint" for="customFrom">From</label>
+          <input type="date" id="customFrom" class="range-select" style="padding:7px 10px;" />
+          <label class="hint" for="customTo">To</label>
+          <input type="date" id="customTo" class="range-select" style="padding:7px 10px;" />
+          <button id="customApply">Apply</button>
+        </span>
         <span class="hint" id="rangeSummary"></span>
       </div>
     </div>
@@ -699,6 +729,39 @@
       <div class="pagination-row" id="pagination-pairs"></div>
     </div>
 
+    <div class="section-heading" id="section-loans">All Loans</div>
+
+    <div class="card">
+      <h2>Every individual loan</h2>
+      <p class="card-sub">The full transaction log — exact date and time each loan was funded (when the lender's confirmation was posted), not just first/last per relationship. Search by either username.</p>
+      <div class="filter-row">
+        <input type="search" id="search-loans" placeholder="Search lender or borrower username…" />
+        <label class="hint" for="pagesize-loans">Rows per page</label>
+        <select id="pagesize-loans" class="range-select">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="all">All</option>
+        </select>
+        <span class="hint" id="count-loans"></span>
+      </div>
+      <table class="rank-table" id="table-loans">
+        <thead>
+          <tr>
+            <th data-key="t">Date &amp; time funded</th>
+            <th data-key="l" style="text-align:left">Lender</th>
+            <th data-key="b" style="text-align:left">Borrower</th>
+            <th data-key="p">Amount</th>
+            <th data-key="f">Fee %</th>
+            <th data-key="d">Duration</th>
+            <th data-key="r">Repaid</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-loans"></tbody>
+      </table>
+      <div class="pagination-row" id="pagination-loans"></div>
+    </div>
+
     <footer class="notes">
       <p><b>Source:</b> r/borrow's own LoansBot confirmation ledger (loan-creation and repayment comments), cross-referenced with each request post's stated terms. Pulled via a public Reddit archive, not Reddit's live API.</p>
       <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Fee/interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
@@ -879,6 +942,15 @@
   const fullSpanLabel = formatSpan(RAW.range.min_t, RAW.range.max_t);
   document.getElementById('datasetBadge').textContent =
     `Full dataset window: ${fullSpanLabel} (${fmtDate(RAW.range.min_t)} – ${fmtDate(RAW.range.max_t)})`;
+  {
+    const minDateStr = new Date(RAW.range.min_t * 1000).toISOString().slice(0, 10);
+    const maxDateStr = new Date(RAW.range.max_t * 1000).toISOString().slice(0, 10);
+    ['customFrom', 'customTo'].forEach(id => {
+      const el = document.getElementById(id);
+      el.min = minDateStr;
+      el.max = maxDateStr;
+    });
+  }
   document.getElementById('allRangeOption').textContent = `All time (${fullSpanLabel})`;
 
   // ---------- Tooltip ----------
@@ -1328,9 +1400,100 @@
   });
   const pairsSection = initPairsSection();
 
+  // ---------- All-loans transaction table ----------
+  function initLoansTableSection() {
+    let sortKey = 't', sortDir = -1;
+    let searchTerm = '';
+    let list = [];
+    let pageSize = 50;
+    let currentPage = 1;
+
+    const searchEl = document.getElementById('search-loans');
+    const countEl = document.getElementById('count-loans');
+    const tbodyEl = document.getElementById('tbody-loans');
+    const tableEl = document.getElementById('table-loans');
+    const pagesizeEl = document.getElementById('pagesize-loans');
+    const paginationEl = document.getElementById('pagination-loans');
+
+    const fmtDateTime = t => {
+      if (t == null) return '—';
+      return new Date(t * 1000).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC',
+      }) + ' UTC';
+    };
+
+    function renderTable() {
+      tbodyEl.innerHTML = '';
+      const term = searchTerm.toLowerCase();
+      let rows = list.filter(x => x.l.toLowerCase().includes(term) || x.b.toLowerCase().includes(term));
+      rows.sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+        return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
+      });
+      countEl.textContent = `${rows.length.toLocaleString()} loan${rows.length === 1 ? '' : 's'}`;
+
+      const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const pageRows = pageSize === Infinity ? rows : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+      pageRows.forEach(x => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
+        const dtTd = document.createElement('td'); dtTd.textContent = fmtDateTime(x.t);
+        tr.appendChild(dtTd);
+        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.textContent = x.l;
+        tr.appendChild(lTd);
+        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.textContent = x.b;
+        tr.appendChild(bTd);
+        [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
+          .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        tbodyEl.appendChild(tr);
+      });
+
+      tableEl.querySelectorAll('th').forEach(th => {
+        th.classList.toggle('active', th.dataset.key === sortKey);
+        th.querySelector('.arrow')?.remove();
+        if (th.dataset.key === sortKey) {
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = sortDir === 1 ? '↑' : '↓';
+          th.appendChild(arrow);
+        }
+      });
+
+      renderPaginationControl(paginationEl, rows.length, pageSize, currentPage, newPage => {
+        currentPage = newPage;
+        renderTable();
+      });
+    }
+
+    searchEl.addEventListener('input', ev => { searchTerm = ev.target.value; currentPage = 1; renderTable(); });
+    pagesizeEl.addEventListener('change', ev => {
+      pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value;
+      currentPage = 1;
+      renderTable();
+    });
+    tableEl.querySelectorAll('th[data-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = (key === 'l' || key === 'b') ? 1 : -1; }
+        currentPage = 1;
+        renderTable();
+      });
+    });
+
+    return {
+      render(newList) { list = newList; currentPage = 1; renderTable(); },
+    };
+  }
+  const loansTableSection = initLoansTableSection();
+
   // ---------- Date range filter state ----------
-  const RANGE_LABELS = { 'today': 'Today', '7': 'Last 7 days', '15': 'Last 15 days', '30': 'Last 1 month', '90': 'Last 3 months', 'all': `All time (${fullSpanLabel})` };
+  const RANGE_LABELS = { 'today': 'Today', '7': 'Last 7 days', '15': 'Last 15 days', '30': 'Last 1 month', '90': 'Last 3 months', 'all': `All time (${fullSpanLabel})`, 'custom': 'Custom range' };
   let currentRange = 'all';
+  let currentCustomFrom = null; // epoch seconds, inclusive
+  let currentCustomTo = null;   // epoch seconds, inclusive
   let currentAgg = null;
   let currentWindow = null;
   let currentTrend = null;
@@ -1339,16 +1502,19 @@
 
   function applyFilter() {
     const end = RAW.range.max_t;
-    let start;
+    let start, rangeEnd = end;
     if (currentRange === 'all') {
       start = RAW.range.min_t;
     } else if (currentRange === 'today') {
       start = Math.floor(end / 86400) * 86400; // start of the most recent UTC day in the dataset
+    } else if (currentRange === 'custom' && currentCustomFrom != null && currentCustomTo != null) {
+      start = currentCustomFrom;
+      rangeEnd = currentCustomTo;
     } else {
       start = end - Number(currentRange) * 86400;
     }
-    currentWindow = { start, end };
-    const filtered = RAW.loans.filter(x => x.t >= start && x.t <= end);
+    currentWindow = { start, end: rangeEnd };
+    const filtered = RAW.loans.filter(x => x.t >= start && x.t <= rangeEnd);
     currentFiltered = filtered;
     currentAgg = {
       overall: computeOverall(filtered),
@@ -1356,7 +1522,7 @@
       borrowers: aggregateBy(filtered, 'b', 'l'),
       pairs: aggregatePairs(filtered),
     };
-    currentTrend = buildTrend(filtered, start, end);
+    currentTrend = buildTrend(filtered, start, rangeEnd);
     renderAll();
   }
 
@@ -1368,18 +1534,46 @@
     renderTrend();
   });
 
+  const customControlsEl = document.getElementById('customRangeControls');
+  const customFromEl = document.getElementById('customFrom');
+  const customToEl = document.getElementById('customTo');
+
   document.getElementById('dateRangeSelect').addEventListener('change', ev => {
     currentRange = ev.target.value;
+    if (currentRange === 'custom') {
+      customControlsEl.style.display = 'inline-flex';
+      if (!customFromEl.value || !customToEl.value) {
+        const toDefault = new Date(RAW.range.max_t * 1000);
+        const fromDefault = new Date(Math.max(RAW.range.min_t, RAW.range.max_t - 30 * 86400) * 1000);
+        customFromEl.value = fromDefault.toISOString().slice(0, 10);
+        customToEl.value = toDefault.toISOString().slice(0, 10);
+      }
+      // don't apply yet — wait for the Apply button so partial picks don't flicker the page
+    } else {
+      customControlsEl.style.display = 'none';
+      applyFilter();
+    }
+  });
+
+  document.getElementById('customApply').addEventListener('click', () => {
+    if (!customFromEl.value || !customToEl.value) return;
+    const from = Math.floor(new Date(customFromEl.value + 'T00:00:00Z').getTime() / 1000);
+    const to = Math.floor(new Date(customToEl.value + 'T23:59:59Z').getTime() / 1000);
+    if (from > to) { alert('The "From" date must be before the "To" date.'); return; }
+    currentCustomFrom = from;
+    currentCustomTo = to;
+    currentRange = 'custom';
     applyFilter();
   });
 
   function renderRangeSummary() {
+    const label = currentRange === 'custom' ? 'a custom range' : RANGE_LABELS[currentRange].toLowerCase();
     document.getElementById('subtitleText').textContent =
-      `Showing ${RANGE_LABELS[currentRange].toLowerCase()}: ${fmtDate(currentWindow.start)} – ${fmtDate(currentWindow.end)} · ${currentAgg.overall.total_loans.toLocaleString()} loans · ${currentAgg.overall.unique_lenders} lenders · ${currentAgg.overall.unique_borrowers} borrowers`;
+      `Showing ${label}: ${fmtDate(currentWindow.start)} – ${fmtDate(currentWindow.end)} · ${currentAgg.overall.total_loans.toLocaleString()} loans · ${currentAgg.overall.unique_lenders} lenders · ${currentAgg.overall.unique_borrowers} borrowers`;
     document.getElementById('rangeSummary').textContent =
       `${fmtDate(currentWindow.start)} – ${fmtDate(currentWindow.end)} · ${currentAgg.overall.total_loans.toLocaleString()} loans`;
     document.getElementById('trendSub').textContent =
-      `Confirmed loans funded, all lenders combined — ${RANGE_LABELS[currentRange]}`;
+      `Confirmed loans funded, all lenders combined — ${currentRange === 'custom' ? 'Custom range' : RANGE_LABELS[currentRange]}`;
   }
 
   function animateNumber(el, endValue, formatFn, duration = 700) {
@@ -1791,6 +1985,7 @@
     lenderSection.render(currentAgg.lenders);
     borrowerSection.render(currentAgg.borrowers);
     pairsSection.render(currentAgg.pairs);
+    loansTableSection.render(currentFiltered);
     renderHeatmapActivity(currentFiltered);
     renderDayOfMonth(currentFiltered);
     renderHeatmapFeeSize(currentFiltered);
