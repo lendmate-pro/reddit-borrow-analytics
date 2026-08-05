@@ -594,7 +594,7 @@
 
     <div class="card">
       <h2>All lenders</h2>
-      <p class="card-sub">Click a column header to sort. Click a row to see that lender's borrowers — who they lend to, how often, and when.</p>
+      <p class="card-sub">Click a column header to sort. Click a row to see that lender's borrowers — who they lend to, how often, and when. "Outstanding" is all-time unpaid principal — it always reflects right now, regardless of the date filter above.</p>
       <div class="filter-row">
         <input type="search" id="search-lenders" placeholder="Search lender username…" />
         <label class="hint" for="pagesize-lenders">Rows per page</label>
@@ -619,6 +619,7 @@
             <th data-key="unique_others">Borrowers</th>
             <th data-key="repeat_others_pct">Repeat%</th>
             <th data-key="primary_other_pct">Primary Borrower</th>
+            <th data-key="outstanding">Outstanding</th>
           </tr>
         </thead>
         <tbody id="tbody-lenders"></tbody>
@@ -649,7 +650,7 @@
 
     <div class="card">
       <h2>All borrowers</h2>
-      <p class="card-sub">Click a column header to sort. Click a row to see who this borrower has taken loans from, how often, and when.</p>
+      <p class="card-sub">Click a column header to sort. Click a row to see who this borrower has taken loans from, how often, and when. "Outstanding" is all-time unpaid principal — it always reflects right now, regardless of the date filter above.</p>
       <div class="filter-row">
         <input type="search" id="search-borrowers" placeholder="Search borrower username…" />
         <label class="hint" for="pagesize-borrowers">Rows per page</label>
@@ -674,6 +675,7 @@
             <th data-key="unique_others">Lenders</th>
             <th data-key="repeat_others_pct">Repeat%</th>
             <th data-key="primary_other_pct">Primary Lender</th>
+            <th data-key="outstanding">Outstanding</th>
           </tr>
         </thead>
         <tbody id="tbody-borrowers"></tbody>
@@ -755,6 +757,7 @@
             <th data-key="f">Fee %</th>
             <th data-key="d">Duration</th>
             <th data-key="r">Repaid</th>
+            <th>Post</th>
           </tr>
         </thead>
         <tbody id="tbody-loans"></tbody>
@@ -784,6 +787,19 @@
     return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   };
   const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+
+  // ---------- Outstanding balances (all-time, unpaid principal — deliberately NOT scoped to the date filter, since "what's currently out" is a right-now snapshot, not a period metric) ----------
+  function computeOutstandingMap(keyField) {
+    const map = new Map();
+    RAW.loans.filter(x => x.r === 0).forEach(x => {
+      const key = x[keyField].toLowerCase();
+      map.set(key, (map.get(key) || 0) + x.p);
+    });
+    return map;
+  }
+  const outstandingByLender = computeOutstandingMap('l');
+  const outstandingByBorrower = computeOutstandingMap('b');
+  const totalOutstanding = RAW.loans.filter(x => x.r === 0).reduce((s, x) => s + x.p, 0);
 
   // ---------- Generic grouping / aggregation (used both lender->borrower and borrower->lender) ----------
   function groupLoans(loans, keyField) {
@@ -1158,6 +1174,10 @@
           : '—';
         tr.appendChild(primaryTd);
 
+        const outstandingTd = document.createElement('td');
+        outstandingTd.textContent = fmtMoney(r.outstanding);
+        tr.appendChild(outstandingTd);
+
         tr.addEventListener('click', () => {
           expanded = expanded === r.name ? null : r.name;
           renderTable();
@@ -1168,7 +1188,7 @@
           const panelRow = document.createElement('tr');
           panelRow.className = 'detail-panel-row';
           const td = document.createElement('td');
-          td.colSpan = 10;
+          td.colSpan = 11;
           td.appendChild(buildDetailPanel(r));
           panelRow.appendChild(td);
           tbodyEl.appendChild(panelRow);
@@ -1231,7 +1251,10 @@
     });
 
     return {
-      render(newList) { list = newList; expanded = null; currentPage = 1; renderBars(); renderTable(); },
+      render(newList) {
+        list = newList.map(r => ({ ...r, outstanding: opts.outstandingMap.get(r.name.toLowerCase()) || 0 }));
+        expanded = null; currentPage = 1; renderBars(); renderTable();
+      },
       resize() { renderBars(); },
     };
   }
@@ -1392,11 +1415,13 @@
     idPrefix: 'lenders', barHue: 'hue-1',
     entityWord: 'lender', entityWordPlural: 'lenders', entityWordCap: 'Lender',
     counterpartWord: 'borrower', counterpartWordPlural: 'borrowers', counterpartWordCap: 'Borrower',
+    outstandingMap: outstandingByLender,
   });
   const borrowerSection = initRankingSection({
     idPrefix: 'borrowers', barHue: 'hue-2',
     entityWord: 'borrower', entityWordPlural: 'borrowers', entityWordCap: 'Borrower',
     counterpartWord: 'lender', counterpartWordPlural: 'lenders', counterpartWordCap: 'Lender',
+    outstandingMap: outstandingByBorrower,
   });
   const pairsSection = initPairsSection();
 
@@ -1448,6 +1473,19 @@
         tr.appendChild(bTd);
         [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        const postTd = document.createElement('td');
+        if (x.u) {
+          const link = document.createElement('a');
+          link.href = 'https://www.reddit.com/r/borrow/comments/' + x.u + '/';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'View post ↗';
+          link.style.color = 'var(--series-1)';
+          postTd.appendChild(link);
+        } else {
+          postTd.textContent = '—';
+        }
+        tr.appendChild(postTd);
         tbodyEl.appendChild(tr);
       });
 
@@ -1598,6 +1636,7 @@
       { label: 'Avg duration', raw: o.avg_duration_days, fmt: v => fmtDays(v) + ' days' },
       { label: 'Active lenders', raw: o.unique_lenders, fmt: fmtNum },
       { label: 'Active borrowers', raw: o.unique_borrowers, fmt: fmtNum },
+      { label: 'Outstanding right now (all-time)', raw: totalOutstanding, fmt: fmtMoney },
     ];
     const kpiRow = document.getElementById('kpiRow');
     kpiRow.innerHTML = '';

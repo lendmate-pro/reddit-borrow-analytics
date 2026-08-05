@@ -269,7 +269,7 @@ def rebuild_loans_final():
             "loan_id": lid, "lender": c["lender"], "borrower": c["borrower"], "principal": c["principal"],
             "fee_pct": fee_pct,
             "duration_days": duration_days if duration_days is not None and 0 <= duration_days <= 400 else None,
-            "is_repaid": is_repaid, "created_utc": c["created_utc"],
+            "is_repaid": is_repaid, "created_utc": c["created_utc"], "post_id": c["link_id"],
         })
 
     json.dump(loans, open(LOANS_FINAL_PATH, "w"))
@@ -278,7 +278,8 @@ def rebuild_loans_final():
 
 def build_dashboard_data(loans):
     compact = [{"l": l["lender"], "b": l["borrower"], "p": l["principal"], "f": l["fee_pct"],
-                "d": l["duration_days"], "r": 1 if l["is_repaid"] else 0, "t": l["created_utc"]} for l in loans]
+                "d": l["duration_days"], "r": 1 if l["is_repaid"] else 0, "t": l["created_utc"],
+                "u": l["post_id"]} for l in loans]
     out = {
         "loans": compact,
         "range": {"min_t": min(c["t"] for c in compact), "max_t": max(c["t"] for c in compact)},
