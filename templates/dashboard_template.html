@@ -272,6 +272,19 @@
   }
   #customApply:hover { filter: brightness(0.94); }
   #customApply:active { transform: scale(0.97); }
+  #filter-loans-clear {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  #filter-loans-clear:hover { background: var(--series-1-wash); color: var(--text-primary); }
+  input[type="number"].range-select::-webkit-inner-spin-button { opacity: 0.6; }
 
   svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
   .bar-label-value { fill: var(--text-primary); font-weight: 600; }
@@ -587,6 +600,7 @@
         <div class="top-n-toggle" id="metric-lenders">
           <button data-metric="num_loans" class="active">Loan count</button>
           <button data-metric="total_amount">$ volume</button>
+          <button data-metric="active_count">Active loans</button>
         </div>
       </div>
       <div id="bar-lenders"></div>
@@ -619,6 +633,7 @@
             <th data-key="unique_others">Borrowers</th>
             <th data-key="repeat_others_pct">Repeat%</th>
             <th data-key="primary_other_pct">Primary Borrower</th>
+            <th data-key="active_count">Active Loans</th>
             <th data-key="outstanding">Outstanding</th>
           </tr>
         </thead>
@@ -643,6 +658,7 @@
         <div class="top-n-toggle" id="metric-borrowers">
           <button data-metric="num_loans" class="active">Loan count</button>
           <button data-metric="total_amount">$ volume</button>
+          <button data-metric="active_count">Active loans</button>
         </div>
       </div>
       <div id="bar-borrowers"></div>
@@ -675,6 +691,7 @@
             <th data-key="unique_others">Lenders</th>
             <th data-key="repeat_others_pct">Repeat%</th>
             <th data-key="primary_other_pct">Primary Lender</th>
+            <th data-key="active_count">Active Loans</th>
             <th data-key="outstanding">Outstanding</th>
           </tr>
         </thead>
@@ -735,9 +752,17 @@
 
     <div class="card">
       <h2>Every individual loan</h2>
-      <p class="card-sub">The full transaction log — exact date and time each loan was funded (when the lender's confirmation was posted), not just first/last per relationship. Search by either username.</p>
+      <p class="card-sub">The full transaction log — exact date and time each loan was funded (when the lender's confirmation was posted), not just first/last per relationship.</p>
       <div class="filter-row">
-        <input type="search" id="search-loans" placeholder="Search lender or borrower username…" />
+        <input type="search" id="filter-loans-lender" placeholder="Filter by lender…" style="min-width:180px;" />
+        <input type="search" id="filter-loans-borrower" placeholder="Filter by borrower…" style="min-width:180px;" />
+        <label class="hint" for="filter-loans-min">Amount</label>
+        <input type="number" id="filter-loans-min" placeholder="Min $" class="range-select" style="width:90px; padding:7px 10px;" />
+        <span class="hint">–</span>
+        <input type="number" id="filter-loans-max" placeholder="Max $" class="range-select" style="width:90px; padding:7px 10px;" />
+        <button id="filter-loans-clear" type="button">Clear filters</button>
+      </div>
+      <div class="filter-row">
         <label class="hint" for="pagesize-loans">Rows per page</label>
         <select id="pagesize-loans" class="range-select">
           <option value="50" selected>50</option>
@@ -746,6 +771,7 @@
           <option value="all">All</option>
         </select>
         <span class="hint" id="count-loans"></span>
+        <span class="hint" id="total-loans" style="font-weight:600; color:var(--text-primary);"></span>
       </div>
       <table class="rank-table" id="table-loans">
         <thead>
@@ -800,6 +826,17 @@
   const outstandingByLender = computeOutstandingMap('l');
   const outstandingByBorrower = computeOutstandingMap('b');
   const totalOutstanding = RAW.loans.filter(x => x.r === 0).reduce((s, x) => s + x.p, 0);
+
+  function computeActiveCountMap(keyField) {
+    const map = new Map();
+    RAW.loans.filter(x => x.r === 0).forEach(x => {
+      const key = x[keyField].toLowerCase();
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+  }
+  const activeCountByLender = computeActiveCountMap('l');
+  const activeCountByBorrower = computeActiveCountMap('b');
 
   // ---------- Generic grouping / aggregation (used both lender->borrower and borrower->lender) ----------
   function groupLoans(loans, keyField) {
@@ -1043,7 +1080,7 @@
       const W = barEl.clientWidth || 1120;
       const rowH = 30, labelW = 190, PAD = { t: 4, r: 60, b: 4 };
       const H = sorted.length * rowH + PAD.t + PAD.b;
-      const maxV = sorted[0][barMetric];
+      const maxV = Math.max(1, sorted[0][barMetric] || 0);
       const barMaxW = W - labelW - PAD.r;
 
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1074,6 +1111,8 @@
             ['Avg loan size', fmtMoney(d.avg_loan_size)],
             ['Avg fee', fmtPct(d.avg_interest_pct)],
             [`Unique ${opts.counterpartWordPlural}`, d.unique_others.toLocaleString()],
+            ['Active loans (all-time)', d.active_count.toLocaleString()],
+            ['Outstanding $ (all-time)', fmtMoney(d.outstanding)],
           ]);
         });
         rect.addEventListener('pointerleave', hideTooltip);
@@ -1174,6 +1213,10 @@
           : '—';
         tr.appendChild(primaryTd);
 
+        const activeCountTd = document.createElement('td');
+        activeCountTd.textContent = fmtNum(r.active_count);
+        tr.appendChild(activeCountTd);
+
         const outstandingTd = document.createElement('td');
         outstandingTd.textContent = fmtMoney(r.outstanding);
         tr.appendChild(outstandingTd);
@@ -1188,7 +1231,7 @@
           const panelRow = document.createElement('tr');
           panelRow.className = 'detail-panel-row';
           const td = document.createElement('td');
-          td.colSpan = 11;
+          td.colSpan = 12;
           td.appendChild(buildDetailPanel(r));
           panelRow.appendChild(td);
           tbodyEl.appendChild(panelRow);
@@ -1252,7 +1295,11 @@
 
     return {
       render(newList) {
-        list = newList.map(r => ({ ...r, outstanding: opts.outstandingMap.get(r.name.toLowerCase()) || 0 }));
+        list = newList.map(r => ({
+          ...r,
+          outstanding: opts.outstandingMap.get(r.name.toLowerCase()) || 0,
+          active_count: opts.activeCountMap.get(r.name.toLowerCase()) || 0,
+        }));
         expanded = null; currentPage = 1; renderBars(); renderTable();
       },
       resize() { renderBars(); },
@@ -1416,25 +1463,33 @@
     entityWord: 'lender', entityWordPlural: 'lenders', entityWordCap: 'Lender',
     counterpartWord: 'borrower', counterpartWordPlural: 'borrowers', counterpartWordCap: 'Borrower',
     outstandingMap: outstandingByLender,
+    activeCountMap: activeCountByLender,
   });
   const borrowerSection = initRankingSection({
     idPrefix: 'borrowers', barHue: 'hue-2',
     entityWord: 'borrower', entityWordPlural: 'borrowers', entityWordCap: 'Borrower',
     counterpartWord: 'lender', counterpartWordPlural: 'lenders', counterpartWordCap: 'Lender',
     outstandingMap: outstandingByBorrower,
+    activeCountMap: activeCountByBorrower,
   });
   const pairsSection = initPairsSection();
 
   // ---------- All-loans transaction table ----------
   function initLoansTableSection() {
     let sortKey = 't', sortDir = -1;
-    let searchTerm = '';
+    let lenderFilter = '', borrowerFilter = '';
+    let minAmount = null, maxAmount = null;
     let list = [];
     let pageSize = 50;
     let currentPage = 1;
 
-    const searchEl = document.getElementById('search-loans');
+    const lenderFilterEl = document.getElementById('filter-loans-lender');
+    const borrowerFilterEl = document.getElementById('filter-loans-borrower');
+    const minAmountEl = document.getElementById('filter-loans-min');
+    const maxAmountEl = document.getElementById('filter-loans-max');
+    const clearBtn = document.getElementById('filter-loans-clear');
     const countEl = document.getElementById('count-loans');
+    const totalEl = document.getElementById('total-loans');
     const tbodyEl = document.getElementById('tbody-loans');
     const tableEl = document.getElementById('table-loans');
     const pagesizeEl = document.getElementById('pagesize-loans');
@@ -1449,14 +1504,20 @@
 
     function renderTable() {
       tbodyEl.innerHTML = '';
-      const term = searchTerm.toLowerCase();
-      let rows = list.filter(x => x.l.toLowerCase().includes(term) || x.b.toLowerCase().includes(term));
+      const lTerm = lenderFilter.toLowerCase(), bTerm = borrowerFilter.toLowerCase();
+      let rows = list.filter(x =>
+        x.l.toLowerCase().includes(lTerm) &&
+        x.b.toLowerCase().includes(bTerm) &&
+        (minAmount == null || x.p >= minAmount) &&
+        (maxAmount == null || x.p <= maxAmount)
+      );
       rows.sort((a, b) => {
         const av = a[sortKey], bv = b[sortKey];
         if (typeof av === 'string') return sortDir * av.localeCompare(bv);
         return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
       });
       countEl.textContent = `${rows.length.toLocaleString()} loan${rows.length === 1 ? '' : 's'}`;
+      totalEl.textContent = `· ${fmtMoney(rows.reduce((s, x) => s + x.p, 0))} total value`;
 
       const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -1506,7 +1567,16 @@
       });
     }
 
-    searchEl.addEventListener('input', ev => { searchTerm = ev.target.value; currentPage = 1; renderTable(); });
+    lenderFilterEl.addEventListener('input', ev => { lenderFilter = ev.target.value; currentPage = 1; renderTable(); });
+    borrowerFilterEl.addEventListener('input', ev => { borrowerFilter = ev.target.value; currentPage = 1; renderTable(); });
+    minAmountEl.addEventListener('input', ev => { minAmount = ev.target.value === '' ? null : Number(ev.target.value); currentPage = 1; renderTable(); });
+    maxAmountEl.addEventListener('input', ev => { maxAmount = ev.target.value === '' ? null : Number(ev.target.value); currentPage = 1; renderTable(); });
+    clearBtn.addEventListener('click', () => {
+      lenderFilterEl.value = ''; borrowerFilterEl.value = ''; minAmountEl.value = ''; maxAmountEl.value = '';
+      lenderFilter = ''; borrowerFilter = ''; minAmount = null; maxAmount = null;
+      currentPage = 1;
+      renderTable();
+    });
     pagesizeEl.addEventListener('change', ev => {
       pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value;
       currentPage = 1;
