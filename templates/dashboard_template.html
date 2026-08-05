@@ -92,6 +92,9 @@
   }
   .quick-nav a:hover { background: var(--series-1-wash); color: var(--text-primary); }
   .quick-nav a.active { background: var(--series-1); color: #fff; }
+
+  .page-section { display: none; }
+  .page-section.active { display: block; }
   .viz-root {
     background: var(--page-plane);
     color: var(--text-primary);
@@ -542,13 +545,13 @@
     </header>
 
     <nav class="quick-nav" id="quickNav">
-      <a href="#top">Overview</a>
-      <a href="#section-insights">Insights</a>
-      <a href="#section-lenders">Lenders</a>
-      <a href="#section-borrowers">Borrowers</a>
-      <a href="#section-pairs">Pairs</a>
-      <a href="#section-loans">Loans</a>
-      <a href="#section-defaults">Defaults</a>
+      <a href="#overview" data-page="overview">Overview</a>
+      <a href="#insights" data-page="insights">Insights</a>
+      <a href="#lenders" data-page="lenders">Lenders</a>
+      <a href="#borrowers" data-page="borrowers">Borrowers</a>
+      <a href="#pairs" data-page="pairs">Pairs</a>
+      <a href="#loans" data-page="loans">Loans</a>
+      <a href="#defaults" data-page="defaults">Defaults</a>
     </nav>
 
     <div class="card date-filter-card">
@@ -574,6 +577,7 @@
       </div>
     </div>
 
+    <section class="page-section" data-page="overview">
     <div class="kpi-row" id="kpiRow"></div>
 
     <div class="card">
@@ -589,6 +593,9 @@
       <div id="trendChart"></div>
     </div>
 
+    </section>
+
+    <section class="page-section" data-page="insights">
     <div class="section-heading" id="section-insights">Insights</div>
 
     <div class="card">
@@ -609,6 +616,9 @@
       <div id="heatmapFeeSize"></div>
     </div>
 
+    </section>
+
+    <section class="page-section" data-page="lenders">
     <div class="section-heading" id="section-lenders">Lenders</div>
 
     <div class="card">
@@ -669,6 +679,9 @@
       <div class="pagination-row" id="pagination-lenders"></div>
     </div>
 
+    </section>
+
+    <section class="page-section" data-page="borrowers">
     <div class="section-heading" id="section-borrowers">Borrowers</div>
 
     <div class="card">
@@ -729,6 +742,9 @@
       <div class="pagination-row" id="pagination-borrowers"></div>
     </div>
 
+    </section>
+
+    <section class="page-section" data-page="pairs">
     <div class="section-heading" id="section-pairs">Lender ↔ Borrower Relationships</div>
 
     <div class="card">
@@ -777,6 +793,9 @@
       <div class="pagination-row" id="pagination-pairs"></div>
     </div>
 
+    </section>
+
+    <section class="page-section" data-page="loans">
     <div class="section-heading" id="section-loans">All Loans</div>
 
     <div class="card">
@@ -820,6 +839,9 @@
       <div class="pagination-row" id="pagination-loans"></div>
     </div>
 
+    </section>
+
+    <section class="page-section" data-page="defaults">
     <div class="section-heading" id="section-defaults">Defaults</div>
 
     <div class="card">
@@ -855,6 +877,8 @@
       </table>
       <div class="pagination-row" id="pagination-unpaid"></div>
     </div>
+
+    </section>
 
     <footer class="notes">
       <p><b>Source:</b> r/borrow's own LoansBot confirmation ledger (loan-creation and repayment comments), cross-referenced with each request post's stated terms. Pulled via a public Reddit archive, not Reddit's live API.</p>
@@ -2346,26 +2370,42 @@
     renderHeatmapFeeSize(currentFiltered);
   }
 
-  applyFilter();
-  window.addEventListener('resize', () => {
+  function redrawAllCharts() {
     renderTrend(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize();
     renderHeatmapActivity(currentFiltered); renderDayOfMonth(currentFiltered); renderHeatmapFeeSize(currentFiltered);
-  });
-
-  // ---------- Quick-nav active-section highlighting ----------
-  const navLinks = [...document.querySelectorAll('.quick-nav a')];
-  const navSections = navLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
-  if ('IntersectionObserver' in window && navSections.length) {
-    const navObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const id = '#' + entry.target.id;
-          navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
-        }
-      });
-    }, { rootMargin: '-15% 0px -75% 0px' });
-    navSections.forEach(s => navObserver.observe(s));
   }
+
+  applyFilter();
+  window.addEventListener('resize', redrawAllCharts);
+
+  // ---------- Page routing: each nav link is its own "page" via the URL hash ----------
+  // SVG charts on a hidden page measure clientWidth as 0 (display:none containers report zero
+  // width), so a page's charts need a redraw the moment it actually becomes visible — otherwise
+  // they're stuck at whatever fallback width they rendered with while hidden.
+  const PAGES = [...document.querySelectorAll('.page-section')].map(el => el.dataset.page);
+  const navLinks = [...document.querySelectorAll('.quick-nav a')];
+  const visitedPages = new Set();
+
+  function currentPageFromHash() {
+    const raw = (location.hash || '').replace(/^#/, '');
+    return PAGES.includes(raw) ? raw : 'overview';
+  }
+
+  function showPage(page, opts) {
+    opts = opts || {};
+    document.querySelectorAll('.page-section').forEach(el => {
+      el.classList.toggle('active', el.dataset.page === page);
+    });
+    navLinks.forEach(a => a.classList.toggle('active', a.dataset.page === page));
+    if (!opts.skipScroll) window.scrollTo(0, 0);
+    if (!visitedPages.has(page)) {
+      visitedPages.add(page);
+      redrawAllCharts();
+    }
+  }
+
+  window.addEventListener('hashchange', () => showPage(currentPageFromHash()));
+  showPage(currentPageFromHash(), { skipScroll: true });
 
   // ---------- Refresh button: force-reload bypassing cache to check for the latest published version ----------
   document.getElementById('refreshPageBtn').addEventListener('click', ev => {
