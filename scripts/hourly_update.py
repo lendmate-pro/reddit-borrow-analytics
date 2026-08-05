@@ -21,6 +21,7 @@ CONFIG = ROOT / "config"
 TEMPLATES = ROOT / "templates"
 STATE_PATH = ROOT / "state.json"
 RAW_PATH = DATA / "loansbot_raw.jsonl"
+UNPAID_PATH = DATA / "unpaid_flags.jsonl"
 POSTS_PATH = DATA / "posts_raw.jsonl"
 LOANS_FINAL_PATH = DATA / "loans_final.json"
 DASHBOARD_DATA_PATH = DATA / "dashboard_data_v2.json"
@@ -43,6 +44,12 @@ TABLE_ROW_RE = re.compile(
     re.MULTILINE,
 )
 LOANID_RE = re.compile(r"id=(\d+)")
+INFO_LOOKUP_RE = re.compile(r"Here is my information on /u/(?P<user>\S+):")
+UNPAID_ROW_RE = re.compile(
+    r"^(?P<lender>[^\|\n]+)\|(?P<borrower>[^\|]+)\|(?P<given>[\d,]+\.\d{2}) (?P<currency>[A-Za-z]{3})\|"
+    r"(?P<repaid>[\d,]+\.\d{2}) [A-Za-z]{3}\|\*\*\*UNPAID\*\*\*\|(?P<thread>[^\|]*)\|(?P<date_given>[^\|\n]*)\|?\s*$",
+    re.MULTILINE,
+)
 
 
 def http_get_json(url, retries=6):
@@ -62,9 +69,12 @@ def http_get_json(url, retries=6):
 
 
 def fetch_new_comments(after, before):
-    """Fetch and parse all LoansBot loan-creation/repayment comments in (after, before]."""
+    """Fetch and parse all LoansBot loan-creation/repayment comments in (after, before].
+    Also opportunistically captures ***UNPAID*** flags from info-lookup comments seen along
+    the way, at zero extra API cost since the body is already fetched for the main parse."""
     cursor = after
     new_records = []
+    new_unpaid_rows = []
     while cursor < before:
         params = {
             "subreddit": "borrow", "author": "LoansBot", "after": cursor, "before": before,
@@ -79,6 +89,16 @@ def fetch_new_comments(after, before):
             created = c.get("created_utc")
             link_id = c.get("link_id")
             cid = c.get("id")
+
+            if INFO_LOOKUP_RE.search(body):
+                for um in UNPAID_ROW_RE.finditer(body):
+                    row = um.groupdict()
+                    new_unpaid_rows.append({
+                        "lender": row["lender"], "borrower": row["borrower"],
+                        "amount": float(row["given"].replace(",", "")), "currency": row["currency"],
+                        "thread": row["thread"].strip(), "date_given": row["date_given"].strip(),
+                        "seen_in_comment_utc": created,
+                    })
 
             m = CREATE_RE.search(body)
             if m:
@@ -108,7 +128,7 @@ def fetch_new_comments(after, before):
         cursor = page[-1]["created_utc"] + 1
         print(f"  fetched page: {len(page)} comments, {len(new_records)} matched so far, cursor={cursor}", flush=True)
         time.sleep(1.2)
-    return new_records
+    return new_records, new_unpaid_rows
 
 
 def fetch_posts_batch(ids):
@@ -276,6 +296,30 @@ def rebuild_loans_final():
     return loans
 
 
+THREAD_POST_ID_RE = re.compile(r"/comments/([a-z0-9]+)/")
+
+
+def build_unpaid_list():
+    if not UNPAID_PATH.exists():
+        return []
+    seen = set()
+    out = []
+    for line in open(UNPAID_PATH):
+        r = json.loads(line)
+        key = (r["lender"].lower(), r["borrower"].lower(), r["amount"], r["date_given"])
+        if key in seen:
+            continue
+        seen.add(key)
+        dt = parse_date_str(r["date_given"])
+        m = THREAD_POST_ID_RE.search(r.get("thread") or "")
+        out.append({
+            "l": r["lender"], "b": r["borrower"], "p": r["amount"], "c": r.get("currency", "USD"),
+            "t": int(dt.timestamp()) if dt else None,
+            "u": m.group(1) if m else None,
+        })
+    return out
+
+
 def build_dashboard_data(loans):
     compact = [{"l": l["lender"], "b": l["borrower"], "p": l["principal"], "f": l["fee_pct"],
                 "d": l["duration_days"], "r": 1 if l["is_repaid"] else 0, "t": l["created_utc"],
@@ -283,6 +327,7 @@ def build_dashboard_data(loans):
     out = {
         "loans": compact,
         "range": {"min_t": min(c["t"] for c in compact), "max_t": max(c["t"] for c in compact)},
+        "unpaid": build_unpaid_list(),
     }
     data_str = json.dumps(out, separators=(",", ":"))
     DASHBOARD_DATA_PATH.write_text(data_str)
@@ -305,8 +350,22 @@ def main():
     now = int(time.time())
 
     print(f"Fetching new comments from {last_cursor} to {now}...", flush=True)
-    new_records = fetch_new_comments(last_cursor, now)
-    print(f"New matched loan events: {len(new_records)}", flush=True)
+    new_records, new_unpaid_rows = fetch_new_comments(last_cursor, now)
+    print(f"New matched loan events: {len(new_records)}, new unpaid-flag rows seen: {len(new_unpaid_rows)}", flush=True)
+
+    if new_unpaid_rows:
+        existing_unpaid_keys = set()
+        if UNPAID_PATH.exists():
+            for line in open(UNPAID_PATH):
+                r = json.loads(line)
+                existing_unpaid_keys.add((r["lender"].lower(), r["borrower"].lower(), r["amount"], r["date_given"]))
+        with open(UNPAID_PATH, "a") as f:
+            for row in new_unpaid_rows:
+                key = (row["lender"].lower(), row["borrower"].lower(), row["amount"], row["date_given"])
+                if key in existing_unpaid_keys:
+                    continue
+                existing_unpaid_keys.add(key)
+                f.write(json.dumps(row) + "\n")
 
     if new_records:
         existing_comment_ids = set()

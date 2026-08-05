@@ -548,6 +548,7 @@
       <a href="#section-borrowers">Borrowers</a>
       <a href="#section-pairs">Pairs</a>
       <a href="#section-loans">Loans</a>
+      <a href="#section-defaults">Defaults</a>
     </nav>
 
     <div class="card date-filter-card">
@@ -632,7 +633,7 @@
 
     <div class="card">
       <h2>All lenders</h2>
-      <p class="card-sub">Click a column header to sort. Click a row to see that lender's borrowers — who they lend to, how often, and when. "Outstanding" is all-time unpaid principal — it always reflects right now, regardless of the date filter above.</p>
+      <p class="card-sub">Click a column header to sort. Click a row to see that lender's borrowers — who they lend to, how often, and when. "Active Loans", "Overdue", "Default %", and "Outstanding" are all all-time — they always reflect right now, regardless of the date filter above.</p>
       <div class="filter-row">
         <input type="search" id="search-lenders" placeholder="Search lender username…" />
         <label class="hint" for="pagesize-lenders">Rows per page</label>
@@ -658,6 +659,8 @@
             <th data-key="repeat_others_pct">Repeat%</th>
             <th data-key="primary_other_pct">Primary Borrower</th>
             <th data-key="active_count">Active Loans</th>
+            <th data-key="overdue_count">Overdue</th>
+            <th data-key="default_rate">Default %</th>
             <th data-key="outstanding">Outstanding</th>
           </tr>
         </thead>
@@ -690,7 +693,7 @@
 
     <div class="card">
       <h2>All borrowers</h2>
-      <p class="card-sub">Click a column header to sort. Click a row to see who this borrower has taken loans from, how often, and when. "Outstanding" is all-time unpaid principal — it always reflects right now, regardless of the date filter above.</p>
+      <p class="card-sub">Click a column header to sort. Click a row to see who this borrower has taken loans from, how often, and when. "Active Loans", "Overdue", "Default %", and "Outstanding" are all all-time — they always reflect right now, regardless of the date filter above.</p>
       <div class="filter-row">
         <input type="search" id="search-borrowers" placeholder="Search borrower username…" />
         <label class="hint" for="pagesize-borrowers">Rows per page</label>
@@ -716,6 +719,8 @@
             <th data-key="repeat_others_pct">Repeat%</th>
             <th data-key="primary_other_pct">Primary Lender</th>
             <th data-key="active_count">Active Loans</th>
+            <th data-key="overdue_count">Overdue</th>
+            <th data-key="default_rate">Default %</th>
             <th data-key="outstanding">Outstanding</th>
           </tr>
         </thead>
@@ -815,6 +820,42 @@
       <div class="pagination-row" id="pagination-loans"></div>
     </div>
 
+    <div class="section-heading" id="section-defaults">Defaults</div>
+
+    <div class="card">
+      <h2>Default rate</h2>
+      <p class="card-sub">Overdue = unpaid loans past their own agreed repayment date, computed live against the current clock — complete coverage, no gaps. Default rate = overdue ÷ (repaid ever + overdue); loans not yet due are excluded since they haven't had a chance to default. Recomputed each time you load the page.</p>
+      <div class="kpi-row" id="defaultsKpiRow"></div>
+    </div>
+
+    <div class="card">
+      <h2>Bot-confirmed unpaid loans</h2>
+      <p class="card-sub" id="unpaidCoverageNote">Loading…</p>
+      <div class="filter-row">
+        <input type="search" id="search-unpaid" placeholder="Search lender or borrower username…" />
+        <label class="hint" for="pagesize-unpaid">Rows per page</label>
+        <select id="pagesize-unpaid" class="range-select">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="all">All</option>
+        </select>
+        <span class="hint" id="count-unpaid"></span>
+      </div>
+      <table class="rank-table" id="table-unpaid">
+        <thead>
+          <tr>
+            <th data-key="l" style="text-align:left">Lender</th>
+            <th data-key="b" style="text-align:left">Borrower</th>
+            <th data-key="p">Amount</th>
+            <th data-key="t">Date given</th>
+            <th>Post</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-unpaid"></tbody>
+      </table>
+      <div class="pagination-row" id="pagination-unpaid"></div>
+    </div>
+
     <footer class="notes">
       <p><b>Source:</b> r/borrow's own LoansBot confirmation ledger (loan-creation and repayment comments), cross-referenced with each request post's stated terms. Pulled via a public Reddit archive, not Reddit's live API.</p>
       <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Fee/interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
@@ -867,6 +908,42 @@
   }
   const activeCountByLender = computeActiveCountMap('l');
   const activeCountByBorrower = computeActiveCountMap('b');
+
+  // ---------- Overdue / default rate (all-time, computed live against the current clock) ----------
+  // A loan is "overdue" if it's unpaid and its own agreed repayment date (created_utc + duration_days)
+  // has already passed. "Default rate" = overdue / (repaid ever + overdue) — loans not yet due are
+  // excluded from the denominator since they haven't had a chance to default yet.
+  const NOW_EPOCH = Date.now() / 1000;
+  function isOverdue(x) { return x.r === 0 && x.d != null && (x.t + x.d * 86400) < NOW_EPOCH; }
+  function computeOverdueMap(keyField) {
+    const count = new Map(), amount = new Map();
+    RAW.loans.filter(isOverdue).forEach(x => {
+      const key = x[keyField].toLowerCase();
+      count.set(key, (count.get(key) || 0) + 1);
+      amount.set(key, (amount.get(key) || 0) + x.p);
+    });
+    return { count, amount };
+  }
+  const overdueByLender = computeOverdueMap('l');
+  const overdueByBorrower = computeOverdueMap('b');
+  function computeRepaidCountMap(keyField) {
+    const map = new Map();
+    RAW.loans.filter(x => x.r === 1).forEach(x => {
+      const key = x[keyField].toLowerCase();
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+  }
+  const repaidCountByLender = computeRepaidCountMap('l');
+  const repaidCountByBorrower = computeRepaidCountMap('b');
+  const totalOverdueCount = RAW.loans.filter(isOverdue).length;
+  const totalOverdueAmount = RAW.loans.filter(isOverdue).reduce((s, x) => s + x.p, 0);
+  const totalRepaidCount = RAW.loans.filter(x => x.r === 1).length;
+  const overallDefaultRate = (totalRepaidCount + totalOverdueCount) > 0
+    ? (totalOverdueCount / (totalRepaidCount + totalOverdueCount)) * 100 : null;
+  function defaultRateFrom(overdueN, repaidN) {
+    return (repaidN + overdueN) > 0 ? (overdueN / (repaidN + overdueN)) * 100 : null;
+  }
 
   // ---------- Generic grouping / aggregation (used both lender->borrower and borrower->lender) ----------
   function groupLoans(loans, keyField) {
@@ -1248,6 +1325,14 @@
         activeCountTd.textContent = fmtNum(r.active_count);
         tr.appendChild(activeCountTd);
 
+        const overdueTd = document.createElement('td');
+        overdueTd.textContent = fmtNum(r.overdue_count);
+        tr.appendChild(overdueTd);
+
+        const defaultRateTd = document.createElement('td');
+        defaultRateTd.textContent = fmtPct(r.default_rate);
+        tr.appendChild(defaultRateTd);
+
         const outstandingTd = document.createElement('td');
         outstandingTd.textContent = fmtMoney(r.outstanding);
         tr.appendChild(outstandingTd);
@@ -1262,7 +1347,7 @@
           const panelRow = document.createElement('tr');
           panelRow.className = 'detail-panel-row';
           const td = document.createElement('td');
-          td.colSpan = 12;
+          td.colSpan = 14;
           td.appendChild(buildDetailPanel(r));
           panelRow.appendChild(td);
           tbodyEl.appendChild(panelRow);
@@ -1326,11 +1411,19 @@
 
     return {
       render(newList) {
-        list = newList.map(r => ({
-          ...r,
-          outstanding: opts.outstandingMap.get(r.name.toLowerCase()) || 0,
-          active_count: opts.activeCountMap.get(r.name.toLowerCase()) || 0,
-        }));
+        list = newList.map(r => {
+          const key = r.name.toLowerCase();
+          const overdueN = opts.overdueMap.count.get(key) || 0;
+          const repaidN = opts.repaidCountMap.get(key) || 0;
+          return {
+            ...r,
+            outstanding: opts.outstandingMap.get(key) || 0,
+            active_count: opts.activeCountMap.get(key) || 0,
+            overdue_count: overdueN,
+            overdue_amount: opts.overdueMap.amount.get(key) || 0,
+            default_rate: defaultRateFrom(overdueN, repaidN),
+          };
+        });
         expanded = null; currentPage = 1; renderBars(); renderTable();
       },
       resize() { renderBars(); },
@@ -1495,6 +1588,8 @@
     counterpartWord: 'borrower', counterpartWordPlural: 'borrowers', counterpartWordCap: 'Borrower',
     outstandingMap: outstandingByLender,
     activeCountMap: activeCountByLender,
+    overdueMap: overdueByLender,
+    repaidCountMap: repaidCountByLender,
   });
   const borrowerSection = initRankingSection({
     idPrefix: 'borrowers', barHue: 'hue-2',
@@ -1502,6 +1597,8 @@
     counterpartWord: 'lender', counterpartWordPlural: 'lenders', counterpartWordCap: 'Lender',
     outstandingMap: outstandingByBorrower,
     activeCountMap: activeCountByBorrower,
+    overdueMap: overdueByBorrower,
+    repaidCountMap: repaidCountByBorrower,
   });
   const pairsSection = initPairsSection();
 
@@ -1627,6 +1724,126 @@
     };
   }
   const loansTableSection = initLoansTableSection();
+
+  // ---------- Defaults: overall KPI tiles (all-time, independent of the date filter above) ----------
+  function renderDefaultsKpis() {
+    const row = document.getElementById('defaultsKpiRow');
+    row.innerHTML = '';
+    const tiles = [
+      { label: 'Default rate (all-time)', raw: overallDefaultRate, fmt: v => v == null ? '—' : fmtPct(v) },
+      { label: 'Overdue loans (unpaid, past due)', raw: totalOverdueCount, fmt: fmtNum },
+      { label: 'Overdue $ value', raw: totalOverdueAmount, fmt: fmtMoney },
+      { label: 'Bot-confirmed unpaid (partial)', raw: RAW.unpaid.length, fmt: fmtNum },
+    ];
+    tiles.forEach((k, i) => {
+      const tile = document.createElement('div');
+      tile.className = 'stat-tile';
+      tile.style.animationDelay = (i * 45) + 'ms';
+      const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = k.label;
+      const val = document.createElement('div'); val.className = 'value';
+      tile.appendChild(lab); tile.appendChild(val);
+      row.appendChild(tile);
+      if (k.raw == null) { val.textContent = '—'; } else { animateNumber(val, k.raw, k.fmt); }
+    });
+  }
+  renderDefaultsKpis();
+
+  // ---------- Defaults: bot-confirmed ***UNPAID*** loans table (all-time, partial coverage) ----------
+  function initUnpaidTableSection() {
+    let sortKey = 't', sortDir = -1;
+    let searchTerm = '';
+    let pageSize = 50;
+    let currentPage = 1;
+    const list = RAW.unpaid;
+
+    const searchEl = document.getElementById('search-unpaid');
+    const countEl = document.getElementById('count-unpaid');
+    const tbodyEl = document.getElementById('tbody-unpaid');
+    const tableEl = document.getElementById('table-unpaid');
+    const pagesizeEl = document.getElementById('pagesize-unpaid');
+    const paginationEl = document.getElementById('pagination-unpaid');
+
+    document.getElementById('unpaidCoverageNote').textContent =
+      `These are loans LoansBot has explicitly flagged ***UNPAID*** in a lookup it happened to run — this only exists for users someone actually looked up, so it's a real signal, not a complete list of every default. ${RAW.unpaid.length.toLocaleString()} confirmed so far.`;
+
+    function renderTable() {
+      tbodyEl.innerHTML = '';
+      const term = searchTerm.toLowerCase();
+      let rows = list.filter(x => x.l.toLowerCase().includes(term) || x.b.toLowerCase().includes(term));
+      rows.sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+        return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
+      });
+      countEl.textContent = `${rows.length.toLocaleString()} loan${rows.length === 1 ? '' : 's'}`;
+
+      const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const pageRows = pageSize === Infinity ? rows : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+      pageRows.forEach(x => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
+        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.textContent = x.l;
+        tr.appendChild(lTd);
+        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.textContent = x.b;
+        tr.appendChild(bTd);
+        const amountTd = document.createElement('td');
+        amountTd.textContent = fmtMoney(x.p) + (x.c && x.c !== 'USD' ? ` ${x.c}` : '');
+        tr.appendChild(amountTd);
+        const dateTd = document.createElement('td'); dateTd.textContent = fmtDate(x.t);
+        tr.appendChild(dateTd);
+        const postTd = document.createElement('td');
+        if (x.u) {
+          const link = document.createElement('a');
+          link.href = 'https://www.reddit.com/r/borrow/comments/' + x.u + '/';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'View post ↗';
+          link.style.color = 'var(--series-1)';
+          postTd.appendChild(link);
+        } else {
+          postTd.textContent = '—';
+        }
+        tr.appendChild(postTd);
+        tbodyEl.appendChild(tr);
+      });
+
+      tableEl.querySelectorAll('th').forEach(th => {
+        th.classList.toggle('active', th.dataset.key === sortKey);
+        th.querySelector('.arrow')?.remove();
+        if (th.dataset.key === sortKey) {
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = sortDir === 1 ? '↑' : '↓';
+          th.appendChild(arrow);
+        }
+      });
+
+      renderPaginationControl(paginationEl, rows.length, pageSize, currentPage, newPage => {
+        currentPage = newPage;
+        renderTable();
+      });
+    }
+
+    searchEl.addEventListener('input', ev => { searchTerm = ev.target.value; currentPage = 1; renderTable(); });
+    pagesizeEl.addEventListener('change', ev => {
+      pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value;
+      currentPage = 1;
+      renderTable();
+    });
+    tableEl.querySelectorAll('th[data-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = (key === 'l' || key === 'b') ? 1 : -1; }
+        currentPage = 1;
+        renderTable();
+      });
+    });
+
+    renderTable();
+  }
+  initUnpaidTableSection();
 
   // ---------- Date range filter state ----------
   const RANGE_LABELS = { 'today': 'Today', '7': 'Last 7 days', '15': 'Last 15 days', '30': 'Last 1 month', '90': 'Last 3 months', 'all': `All time (${fullSpanLabel})`, 'custom': 'Custom range' };
