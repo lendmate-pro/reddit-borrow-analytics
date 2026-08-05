@@ -1,0 +1,41 @@
+name: Hourly dashboard refresh
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hourly-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install --quiet python-dateutil
+
+      - name: Run pipeline
+        run: python3 scripts/hourly_update.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.email "hourly-bot@reddit-borrow-analytics.local"
+          git config user.name "Hourly Update Bot"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Hourly update: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

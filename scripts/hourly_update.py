@@ -24,7 +24,8 @@ RAW_PATH = DATA / "loansbot_raw.jsonl"
 POSTS_PATH = DATA / "posts_raw.jsonl"
 LOANS_FINAL_PATH = DATA / "loans_final.json"
 DASHBOARD_DATA_PATH = DATA / "dashboard_data_v2.json"
-DASHBOARD_HTML_PATH = ROOT / "dashboard.html"
+DOCS_DIR = ROOT / "docs"
+DASHBOARD_HTML_PATH = DOCS_DIR / "index.html"
 AUTH_HASH_PATH = CONFIG / "auth_hash.txt"
 
 BASE_COMMENTS = "https://arctic-shift.photon-reddit.com/api/comments/search"
@@ -287,10 +288,13 @@ def build_dashboard_data(loans):
     return data_str
 
 
-def build_dashboard_html(data_str):
+def build_dashboard_html(data_str, last_updated_label):
     tpl = (TEMPLATES / "dashboard_template.html").read_text()
     auth_hash = AUTH_HASH_PATH.read_text().strip()
-    out = tpl.replace("__DASHBOARD_DATA__", data_str).replace("__AUTH_HASH__", auth_hash)
+    out = (tpl.replace("__DASHBOARD_DATA__", data_str)
+              .replace("__AUTH_HASH__", auth_hash)
+              .replace("__LAST_UPDATED__", last_updated_label))
+    DOCS_DIR.mkdir(exist_ok=True)
     DASHBOARD_HTML_PATH.write_text(out)
 
 
@@ -335,7 +339,8 @@ def main():
     data_str = build_dashboard_data(loans)
 
     print("Rebuilding dashboard.html...", flush=True)
-    build_dashboard_html(data_str)
+    last_updated_label = "Data last refreshed: " + datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
+    build_dashboard_html(data_str, last_updated_label)
 
     print(f"DONE. new_events={len(new_records)} total_loans={len(loans)} last_cursor={state['last_cursor']}", flush=True)
 
