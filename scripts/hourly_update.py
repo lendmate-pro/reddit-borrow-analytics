@@ -308,6 +308,12 @@ def main():
     print(f"New matched loan events: {len(new_records)}", flush=True)
 
     if new_records:
+        existing_comment_ids = set()
+        for line in open(RAW_PATH):
+            existing_comment_ids.add(json.loads(line).get("comment_id"))
+        new_records = [r for r in new_records if r.get("comment_id") not in existing_comment_ids]
+
+    if new_records:
         with open(RAW_PATH, "a") as f:
             for r in new_records:
                 f.write(json.dumps(r) + "\n")
