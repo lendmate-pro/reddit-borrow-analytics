@@ -6,7 +6,7 @@ import time
 import urllib.request
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 try:
@@ -346,7 +346,8 @@ def main():
     data_str = build_dashboard_data(loans)
 
     print("Rebuilding dashboard.html...", flush=True)
-    last_updated_label = "Data last refreshed: " + datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
+    IST = timezone(timedelta(hours=5, minutes=30))
+    last_updated_label = "Data last refreshed: " + datetime.now(IST).strftime("%b %d, %Y %H:%M IST")
     build_dashboard_html(data_str, last_updated_label)
 
     print(f"DONE. new_events={len(new_records)} total_loans={len(loans)} last_cursor={state['last_cursor']}", flush=True)

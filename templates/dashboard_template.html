@@ -592,7 +592,7 @@
 
     <div class="card">
       <h2>When do loans get requested?</h2>
-      <p class="card-sub">Loan volume by day of week and hour of day (UTC), within the selected date range. Darker = busier.</p>
+      <p class="card-sub">Loan volume by day of week and hour of day (IST), within the selected date range. Darker = busier.</p>
       <div id="heatmapActivity"></div>
     </div>
 
@@ -834,9 +834,15 @@
   const fmtDays = n => n == null ? '—' : n.toFixed(1);
   const fmtDate = t => {
     if (t == null) return '—';
-    return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' });
   };
   const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+
+  // All internal date/time bucketing (heatmap day/hour, day-of-month, trend buckets, "today"/custom-range
+  // boundaries) is keyed off IST, not just display labels — IST is a fixed +5:30 offset with no DST, so
+  // shifting the epoch by this many seconds before reading UTC date parts yields correct IST wall-clock values.
+  const IST_OFFSET = 19800; // 5h30m in seconds
+  const istDate = t => new Date((t + IST_OFFSET) * 1000);
 
   // ---------- Outstanding balances (all-time, unpaid principal — deliberately NOT scoped to the date filter, since "what's currently out" is a right-now snapshot, not a period metric) ----------
   function computeOutstandingMap(keyField) {
@@ -974,19 +980,20 @@
     const daily = spanDays <= 35;
     const bucketMap = new Map();
     const order = [];
-    const dayKey = t => new Date(t * 1000).toISOString().slice(0, 10);
+    const dayKey = t => istDate(t).toISOString().slice(0, 10);
     const monthKey = t => {
-      const d = new Date(t * 1000);
+      const d = istDate(t);
       return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
     };
     const keyFn = daily ? dayKey : monthKey;
     const ensure = k => { if (!bucketMap.has(k)) { bucketMap.set(k, { loans: 0, dollars: 0 }); order.push(k); } };
 
     if (daily) {
-      for (let t = Math.floor(windowStart / 86400) * 86400; t <= windowEnd; t += 86400) ensure(dayKey(t));
+      const alignedStart = Math.floor((windowStart + IST_OFFSET) / 86400) * 86400 - IST_OFFSET;
+      for (let t = alignedStart; t <= windowEnd; t += 86400) ensure(dayKey(t));
     } else {
-      let cursor = new Date(Date.UTC(new Date(windowStart * 1000).getUTCFullYear(), new Date(windowStart * 1000).getUTCMonth(), 1));
-      const endMonth = new Date(Date.UTC(new Date(windowEnd * 1000).getUTCFullYear(), new Date(windowEnd * 1000).getUTCMonth(), 1));
+      let cursor = new Date(Date.UTC(istDate(windowStart).getUTCFullYear(), istDate(windowStart).getUTCMonth(), 1));
+      const endMonth = new Date(Date.UTC(istDate(windowEnd).getUTCFullYear(), istDate(windowEnd).getUTCMonth(), 1));
       while (cursor <= endMonth) {
         ensure(monthKey(cursor.getTime() / 1000));
         cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
@@ -1020,8 +1027,8 @@
   document.getElementById('datasetBadge').textContent =
     `Full dataset window: ${fullSpanLabel} (${fmtDate(RAW.range.min_t)} – ${fmtDate(RAW.range.max_t)})`;
   {
-    const minDateStr = new Date(RAW.range.min_t * 1000).toISOString().slice(0, 10);
-    const maxDateStr = new Date(RAW.range.max_t * 1000).toISOString().slice(0, 10);
+    const minDateStr = istDate(RAW.range.min_t).toISOString().slice(0, 10);
+    const maxDateStr = istDate(RAW.range.max_t).toISOString().slice(0, 10);
     ['customFrom', 'customTo'].forEach(id => {
       const el = document.getElementById(id);
       el.min = minDateStr;
@@ -1522,8 +1529,8 @@
     const fmtDateTime = t => {
       if (t == null) return '—';
       return new Date(t * 1000).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC',
-      }) + ' UTC';
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+      }) + ' IST';
     };
 
     function renderTable() {
@@ -1638,7 +1645,7 @@
     if (currentRange === 'all') {
       start = RAW.range.min_t;
     } else if (currentRange === 'today') {
-      start = Math.floor(end / 86400) * 86400; // start of the most recent UTC day in the dataset
+      start = Math.floor((end + IST_OFFSET) / 86400) * 86400 - IST_OFFSET; // start of the most recent IST day in the dataset
     } else if (currentRange === 'custom' && currentCustomFrom != null && currentCustomTo != null) {
       start = currentCustomFrom;
       rangeEnd = currentCustomTo;
@@ -1675,10 +1682,8 @@
     if (currentRange === 'custom') {
       customControlsEl.style.display = 'inline-flex';
       if (!customFromEl.value || !customToEl.value) {
-        const toDefault = new Date(RAW.range.max_t * 1000);
-        const fromDefault = new Date(Math.max(RAW.range.min_t, RAW.range.max_t - 30 * 86400) * 1000);
-        customFromEl.value = fromDefault.toISOString().slice(0, 10);
-        customToEl.value = toDefault.toISOString().slice(0, 10);
+        customFromEl.value = istDate(Math.max(RAW.range.min_t, RAW.range.max_t - 30 * 86400)).toISOString().slice(0, 10);
+        customToEl.value = istDate(RAW.range.max_t).toISOString().slice(0, 10);
       }
       // don't apply yet — wait for the Apply button so partial picks don't flicker the page
     } else {
@@ -1689,8 +1694,8 @@
 
   document.getElementById('customApply').addEventListener('click', () => {
     if (!customFromEl.value || !customToEl.value) return;
-    const from = Math.floor(new Date(customFromEl.value + 'T00:00:00Z').getTime() / 1000);
-    const to = Math.floor(new Date(customToEl.value + 'T23:59:59Z').getTime() / 1000);
+    const from = Math.floor(new Date(customFromEl.value + 'T00:00:00Z').getTime() / 1000) - IST_OFFSET;
+    const to = Math.floor(new Date(customToEl.value + 'T23:59:59Z').getTime() / 1000) - IST_OFFSET;
     if (from > to) { alert('The "From" date must be before the "To" date.'); return; }
     currentCustomFrom = from;
     currentCustomTo = to;
@@ -1901,7 +1906,7 @@
     const el = document.getElementById('heatmapActivity');
     const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
     loans.forEach(x => {
-      const d = new Date(x.t * 1000);
+      const d = istDate(x.t);
       grid[d.getUTCDay()][d.getUTCHours()] += 1;
     });
     const max = Math.max(1, ...grid.flat());
@@ -1936,7 +1941,7 @@
         if (count > 0) rect.style.fill = colorForIntensity(count, max);
         rect.style.animation = `cellPop 0.3s ease both ${Math.min((row * 24 + hr) * 3, 350)}ms`;
         rect.addEventListener('pointermove', ev => {
-          showTooltip(ev.clientX, ev.clientY, `${label}, ${hr}:00–${(hr + 1) % 24}:00 UTC`, [
+          showTooltip(ev.clientX, ev.clientY, `${label}, ${hr}:00–${(hr + 1) % 24}:00 IST`, [
             ['Loans requested', count.toLocaleString()],
           ]);
         });
@@ -1961,7 +1966,7 @@
   function renderDayOfMonth(loans) {
     const el = document.getElementById('chartDayOfMonth');
     const counts = Array(31).fill(0);
-    loans.forEach(x => { counts[new Date(x.t * 1000).getUTCDate() - 1] += 1; });
+    loans.forEach(x => { counts[istDate(x.t).getUTCDate() - 1] += 1; });
 
     const W = el.clientWidth || 1120, H = 200, PAD = { l: 36, r: 12, t: 10, b: 24 };
     const max = Math.max(1, ...counts);
