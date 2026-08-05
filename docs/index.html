@@ -60,7 +60,7 @@
 
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body { margin: 0; }
+  body { margin: 0; overflow-x: hidden; }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
@@ -101,6 +101,7 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     padding: 24px 20px 60px;
     min-height: 100vh;
+    overflow-x: hidden;
   }
   .wrap { max-width: 1180px; margin: 0 auto; }
   .viz-root.locked .wrap { display: none; }
@@ -113,6 +114,8 @@
     align-items: center;
     justify-content: center;
     background: var(--page-plane);
+    padding: 20px;
+    box-sizing: border-box;
   }
   #loginGate.hidden { display: none; }
   .login-card {
@@ -363,6 +366,7 @@
   .tooltip .tt-row { display: flex; justify-content: space-between; gap: 14px; color: rgba(255,255,255,0.75); }
   .tooltip .tt-row strong { color: inherit; font-weight: 600; }
 
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table.rank-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.rank-table th {
     text-align: right;
@@ -386,6 +390,7 @@
     border-bottom: 1px solid var(--gridline);
     font-variant-numeric: tabular-nums;
     color: var(--text-primary);
+    white-space: nowrap;
   }
   table.rank-table td.name-cell {
     text-align: left;
@@ -417,10 +422,10 @@
   table.detail-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   table.detail-table th {
     text-align: right; font-weight: 500; color: var(--text-muted); font-size: 11px;
-    text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--gridline);
+    text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--gridline); white-space: nowrap;
   }
   table.detail-table th:first-child, table.detail-table td:first-child { text-align: left; }
-  table.detail-table td { text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  table.detail-table td { text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; color: var(--text-primary); white-space: nowrap; }
   table.detail-table td.name-cell { text-align: left; font-variant-numeric: normal; color: var(--text-primary); }
   table.detail-table tbody tr:nth-child(odd) { background: rgba(128,128,128,0.04); }
   .repeat-chip {
@@ -478,6 +483,19 @@
 
   @media (max-width: 860px) {
     table.rank-table { font-size: 12px; }
+  }
+
+  @media (max-width: 640px) {
+    .viz-root { padding: 16px 12px 40px; }
+    .card { padding: 14px 14px; }
+    h1 { font-size: 19px; }
+    .header-logo { width: 32px; height: 32px; }
+    .stat-tile .value { font-size: 17px; }
+    .filter-row { gap: 8px; }
+    .filter-row input[type="search"] { min-width: 0; flex: 1 1 160px; }
+    table.detail-table { font-size: 11.5px; }
+    .detail-panel { padding: 14px 14px 16px 20px; }
+    #refreshPageBtn .refresh-label { display: none; }
   }
 </style>
 
@@ -545,8 +563,8 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 04:14 IST</div>
-      <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> Refresh</button>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 04:23 IST</div>
+      <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
     </header>
 
     <nav class="quick-nav" id="quickNav">
@@ -571,7 +589,7 @@
           <option value="all" id="allRangeOption" selected>All time</option>
           <option value="custom">Custom range…</option>
         </select>
-        <span id="customRangeControls" style="display:none; align-items:center; gap:8px;">
+        <span id="customRangeControls" style="display:none; align-items:center; gap:8px; flex-wrap: wrap;">
           <label class="hint" for="customFrom">From</label>
           <input type="date" id="customFrom" class="range-select" style="padding:7px 10px;" />
           <label class="hint" for="customTo">To</label>
@@ -660,6 +678,7 @@
         </select>
         <span class="hint" id="count-lenders"></span>
       </div>
+      <div class="table-scroll">
       <table class="rank-table" id="table-lenders">
         <thead>
           <tr>
@@ -681,6 +700,7 @@
         </thead>
         <tbody id="tbody-lenders"></tbody>
       </table>
+      </div>
       <div class="pagination-row" id="pagination-lenders"></div>
     </div>
 
@@ -723,6 +743,7 @@
         </select>
         <span class="hint" id="count-borrowers"></span>
       </div>
+      <div class="table-scroll">
       <table class="rank-table" id="table-borrowers">
         <thead>
           <tr>
@@ -744,6 +765,7 @@
         </thead>
         <tbody id="tbody-borrowers"></tbody>
       </table>
+      </div>
       <div class="pagination-row" id="pagination-borrowers"></div>
     </div>
 
@@ -780,6 +802,7 @@
         </select>
         <span class="hint" id="count-pairs"></span>
       </div>
+      <div class="table-scroll">
       <table class="rank-table" id="table-pairs">
         <thead>
           <tr>
@@ -795,6 +818,7 @@
         </thead>
         <tbody id="tbody-pairs"></tbody>
       </table>
+      </div>
       <div class="pagination-row" id="pagination-pairs"></div>
     </div>
 
@@ -826,6 +850,7 @@
         <span class="hint" id="count-loans"></span>
         <span class="hint" id="total-loans" style="font-weight:600; color:var(--text-primary);"></span>
       </div>
+      <div class="table-scroll">
       <table class="rank-table" id="table-loans">
         <thead>
           <tr>
@@ -841,6 +866,7 @@
         </thead>
         <tbody id="tbody-loans"></tbody>
       </table>
+      </div>
       <div class="pagination-row" id="pagination-loans"></div>
     </div>
 
@@ -868,6 +894,7 @@
         </select>
         <span class="hint" id="count-unpaid"></span>
       </div>
+      <div class="table-scroll">
       <table class="rank-table" id="table-unpaid">
         <thead>
           <tr>
@@ -880,6 +907,7 @@
         </thead>
         <tbody id="tbody-unpaid"></tbody>
       </table>
+      </div>
       <div class="pagination-row" id="pagination-unpaid"></div>
     </div>
 
@@ -907,6 +935,7 @@
     return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' });
   };
   const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const truncateLabel = (text, maxChars) => text.length > maxChars ? text.slice(0, maxChars - 1) + '…' : text;
 
   // All internal date/time bucketing (heatmap day/hour, day-of-month, trend buckets, "today"/custom-range
   // boundaries) is keyed off IST, not just display labels — IST is a fixed +5:30 offset with no DST, so
@@ -1215,7 +1244,7 @@
       const sorted = list.slice().sort((a, b) => b[barMetric] - a[barMetric]).slice(0, topN);
       if (!sorted.length) { barEl.innerHTML = ''; return; }
       const W = barEl.clientWidth || 1120;
-      const rowH = 30, labelW = 190, PAD = { t: 4, r: 60, b: 4 };
+      const rowH = 30, labelW = W < 480 ? 96 : W < 700 ? 140 : 190, PAD = { t: 4, r: 60, b: 4 };
       const H = sorted.length * rowH + PAD.t + PAD.b;
       const maxV = Math.max(1, sorted[0][barMetric] || 0);
       const barMaxW = W - labelW - PAD.r;
@@ -1232,7 +1261,7 @@
         nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
         nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
         nameTxt.setAttribute('class', 'bar-label-name');
-        nameTxt.textContent = `${i + 1}. ${d.name}`;
+        nameTxt.textContent = `${i + 1}. ${truncateLabel(d.name, Math.max(6, Math.floor(labelW / 7)))}`;
         svg.appendChild(nameTxt);
 
         const rect = document.createElementNS(svg.namespaceURI, 'rect');
@@ -1302,7 +1331,10 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      panel.appendChild(table);
+      const tableScroll = document.createElement('div');
+      tableScroll.className = 'table-scroll';
+      tableScroll.appendChild(table);
+      panel.appendChild(tableScroll);
 
       if (rec.unique_others > rec.top_others.length) {
         const more = document.createElement('p');
@@ -1481,7 +1513,7 @@
       const sorted = list.slice(0, topN);
       if (!sorted.length) { barEl.innerHTML = ''; return; }
       const W = barEl.clientWidth || 1120;
-      const rowH = 30, labelW = 260, PAD = { t: 4, r: 60, b: 4 };
+      const rowH = 30, labelW = W < 480 ? 120 : W < 700 ? 180 : 260, PAD = { t: 4, r: 60, b: 4 };
       const H = sorted.length * rowH + PAD.t + PAD.b;
       const maxV = sorted[0].count;
       const barMaxW = W - labelW - PAD.r;
@@ -1498,7 +1530,8 @@
         nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
         nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
         nameTxt.setAttribute('class', 'bar-label-name');
-        nameTxt.textContent = `${i + 1}. ${d.lender} → ${d.borrower}`;
+        const pairChars = Math.max(8, Math.floor(labelW / 7));
+        nameTxt.textContent = `${i + 1}. ${truncateLabel(d.lender, Math.floor(pairChars / 2))} → ${truncateLabel(d.borrower, Math.floor(pairChars / 2))}`;
         svg.appendChild(nameTxt);
 
         const rect = document.createElementNS(svg.namespaceURI, 'rect');
