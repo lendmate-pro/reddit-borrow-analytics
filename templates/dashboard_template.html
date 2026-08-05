@@ -157,7 +157,9 @@
   .login-card { animation: fadeSlideUp 0.35s ease both; }
   .login-error { font-size: 12px; color: #d03b3b; min-height: 16px; margin: 10px 0 0; }
   header.page-header { margin-bottom: 18px; }
-  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .header-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .header-logo { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; object-fit: contain; }
   .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 10px; }
   .dataset-badge {
     display: inline-flex;
@@ -537,7 +539,10 @@
   </script>
   <div class="wrap">
     <header class="page-header" id="top">
-      <h1>r/borrow Lender &amp; Borrower Analytics</h1>
+      <div class="header-title-row">
+        <img src="https://lendmate.pro/images/logo.png" alt="Lendmate" class="header-logo" width="40" height="40" loading="eager" />
+        <h1>r/borrow Lender &amp; Borrower Analytics</h1>
+      </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
       <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">__LAST_UPDATED__</div>
