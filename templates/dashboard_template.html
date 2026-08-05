@@ -217,6 +217,16 @@
   .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .trend-area { fill: var(--series-1-wash); }
   .trend-dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+  .trend-line-projected { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-dasharray: 5 4; stroke-linecap: round; opacity: 0.6; }
+  .trend-dot-projected { fill: var(--surface-1); stroke: var(--series-1); stroke-width: 2; }
+
+  .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; }
+  .heat-cell.empty { fill: var(--gridline); }
+  .heat-legend-row { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+  .heat-legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+  .col-chart-bar { fill: var(--series-1); cursor: pointer; }
+  .col-chart-bar:hover { fill: var(--seq-500); }
 
   .tooltip {
     position: fixed;
@@ -435,6 +445,13 @@
     <div class="card">
       <h2>Loan volume over time</h2>
       <p class="card-sub" id="trendSub">Number of confirmed loans funded, all lenders combined</p>
+      <div class="filter-row" style="margin-bottom:8px;">
+        <div class="top-n-toggle" id="projectionToggle">
+          <button data-on="0" class="active">Actuals only</button>
+          <button data-on="1">+ Show projection</button>
+        </div>
+        <span class="hint" id="projectionHint"></span>
+      </div>
       <div id="trendChart"></div>
     </div>
 
@@ -594,6 +611,26 @@
         <tbody id="tbody-pairs"></tbody>
       </table>
       <div class="pagination-row" id="pagination-pairs"></div>
+    </div>
+
+    <div class="section-heading">Insights</div>
+
+    <div class="card">
+      <h2>When do loans get requested?</h2>
+      <p class="card-sub">Loan volume by day of week and hour of day (UTC), within the selected date range. Darker = busier.</p>
+      <div id="heatmapActivity"></div>
+    </div>
+
+    <div class="card">
+      <h2>Loan requests by day of month</h2>
+      <p class="card-sub">If borrowers are mostly covering rent or waiting on a paycheck, this tends to spike around the 1st and 15th.</p>
+      <div id="chartDayOfMonth"></div>
+    </div>
+
+    <div class="card">
+      <h2>Fee % by loan size</h2>
+      <p class="card-sub">Do smaller loans get charged a higher percentage fee than larger ones? Each cell is a count of loans in that size/fee combination (loans with an unparsed fee are excluded).</p>
+      <div id="heatmapFeeSize"></div>
     </div>
 
     <footer class="notes">
@@ -1229,6 +1266,8 @@
   let currentAgg = null;
   let currentWindow = null;
   let currentTrend = null;
+  let currentFiltered = null;
+  let showProjection = false;
 
   function applyFilter() {
     const end = RAW.range.max_t;
@@ -1242,6 +1281,7 @@
     }
     currentWindow = { start, end };
     const filtered = RAW.loans.filter(x => x.t >= start && x.t <= end);
+    currentFiltered = filtered;
     currentAgg = {
       overall: computeOverall(filtered),
       lenders: aggregateBy(filtered, 'l', 'b'),
@@ -1251,6 +1291,14 @@
     currentTrend = buildTrend(filtered, start, end);
     renderAll();
   }
+
+  document.getElementById('projectionToggle').addEventListener('click', ev => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    showProjection = btn.dataset.on === '1';
+    [...document.getElementById('projectionToggle').children].forEach(b => b.classList.toggle('active', b === btn));
+    renderTrend();
+  });
 
   document.getElementById('dateRangeSelect').addEventListener('change', ev => {
     currentRange = ev.target.value;
@@ -1289,14 +1337,37 @@
     });
   }
 
+  function computeProjection(data) {
+    const n = Math.min(6, data.length);
+    if (n < 2) return null;
+    const recent = data.slice(-n);
+    const xs = recent.map((_, i) => i);
+    const ys = recent.map(d => d.loans);
+    const xMean = xs.reduce((a, b) => a + b, 0) / n;
+    const yMean = ys.reduce((a, b) => a + b, 0) / n;
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) { num += (xs[i] - xMean) * (ys[i] - yMean); den += (xs[i] - xMean) ** 2; }
+    const slope = den ? num / den : 0;
+    return Math.max(0, Math.round(ys[n - 1] + slope));
+  }
+
   function renderTrend() {
     const el = document.getElementById('trendChart');
     const W = el.clientWidth || 1120, H = 200, PAD = { l: 40, r: 16, t: 12, b: 28 };
     const data = currentTrend;
-    const maxV = Math.max(1, ...data.map(d => d.loans));
+    const projectedVal = showProjection ? computeProjection(data) : null;
+    const plotCount = data.length + (projectedVal != null ? 1 : 0);
+    const maxV = Math.max(1, ...data.map(d => d.loans), projectedVal || 0);
     const niceMax = Math.ceil(maxV / 100) * 100 || maxV + 1;
-    const x = i => PAD.l + (i / Math.max(1, data.length - 1)) * (W - PAD.l - PAD.r);
+    const x = i => PAD.l + (i / Math.max(1, plotCount - 1)) * (W - PAD.l - PAD.r);
     const y = v => H - PAD.b - (v / niceMax) * (H - PAD.t - PAD.b);
+
+    const hintEl = document.getElementById('projectionHint');
+    if (projectedVal != null) {
+      hintEl.textContent = `Next period projected: ~${projectedVal.toLocaleString()} loans (simple trend from the last ${Math.min(6, data.length)} periods — not a forecast model, just a linear read of recent momentum)`;
+    } else {
+      hintEl.textContent = '';
+    }
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', W); svg.setAttribute('height', H);
@@ -1358,8 +1429,273 @@
       svg.appendChild(hit);
     });
 
+    if (projectedVal != null) {
+      const lastIdx = data.length - 1;
+      const projIdx = data.length;
+      const projLine = document.createElementNS(svg.namespaceURI, 'path');
+      projLine.setAttribute('d', `M ${x(lastIdx)} ${y(data[lastIdx].loans)} L ${x(projIdx)} ${y(projectedVal)}`);
+      projLine.setAttribute('class', 'trend-line-projected');
+      svg.appendChild(projLine);
+
+      const pDot = document.createElementNS(svg.namespaceURI, 'circle');
+      pDot.setAttribute('cx', x(projIdx)); pDot.setAttribute('cy', y(projectedVal)); pDot.setAttribute('r', 4);
+      pDot.setAttribute('class', 'trend-dot-projected');
+      svg.appendChild(pDot);
+      const pHit = document.createElementNS(svg.namespaceURI, 'circle');
+      pHit.setAttribute('cx', x(projIdx)); pHit.setAttribute('cy', y(projectedVal)); pHit.setAttribute('r', 14);
+      pHit.setAttribute('fill', 'transparent'); pHit.style.cursor = 'pointer';
+      pHit.addEventListener('pointermove', ev => {
+        showTooltip(ev.clientX, ev.clientY, 'Next (projected)', [
+          ['Projected loans', projectedVal.toLocaleString()],
+        ]);
+      });
+      pHit.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(pHit);
+
+      const pTxt = document.createElementNS(svg.namespaceURI, 'text');
+      pTxt.setAttribute('x', x(projIdx)); pTxt.setAttribute('y', H - 8);
+      pTxt.setAttribute('text-anchor', 'middle'); pTxt.setAttribute('font-size', '10.5');
+      pTxt.textContent = 'Next';
+      svg.appendChild(pTxt);
+    }
+
     el.innerHTML = '';
     el.appendChild(svg);
+  }
+
+  // ---------- Insights: heatmaps + day-of-month pattern ----------
+  const SEQ_STEPS = ['var(--seq-100)', 'var(--seq-200)', 'var(--seq-300)', 'var(--seq-400)', 'var(--seq-450)', 'var(--seq-500)', 'var(--seq-600)'];
+  function colorForIntensity(count, max) {
+    if (count <= 0) return null;
+    const ratio = count / max;
+    const idx = Math.min(SEQ_STEPS.length - 1, Math.floor(ratio * SEQ_STEPS.length));
+    return SEQ_STEPS[idx];
+  }
+  function renderHeatLegend(container, max) {
+    const row = document.createElement('div');
+    row.className = 'heat-legend-row';
+    const lowLabel = document.createElement('span'); lowLabel.textContent = 'Fewer';
+    row.appendChild(lowLabel);
+    SEQ_STEPS.forEach(step => {
+      const sw = document.createElement('span');
+      sw.className = 'heat-legend-swatch';
+      sw.style.background = step;
+      row.appendChild(sw);
+    });
+    const highLabel = document.createElement('span'); highLabel.textContent = `More (up to ${max.toLocaleString()})`;
+    row.appendChild(highLabel);
+    container.appendChild(row);
+  }
+
+  function renderHeatmapActivity(loans) {
+    const el = document.getElementById('heatmapActivity');
+    const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+    loans.forEach(x => {
+      const d = new Date(x.t * 1000);
+      grid[d.getUTCDay()][d.getUTCHours()] += 1;
+    });
+    const max = Math.max(1, ...grid.flat());
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const W = el.clientWidth || 1120;
+    const labelW = 40, PAD = { t: 4, r: 4, b: 22 };
+    const cellW = (W - labelW - PAD.r) / 24;
+    const cellH = 24;
+    const H = 7 * cellH + PAD.t + PAD.b;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    dayLabels.forEach((label, row) => {
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', labelW - 8); txt.setAttribute('y', PAD.t + row * cellH + cellH / 2 + 4);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '11');
+      txt.textContent = label;
+      svg.appendChild(txt);
+
+      for (let hr = 0; hr < 24; hr++) {
+        const count = grid[row][hr];
+        const rect = document.createElementNS(svg.namespaceURI, 'rect');
+        rect.setAttribute('x', labelW + hr * cellW);
+        rect.setAttribute('y', PAD.t + row * cellH);
+        rect.setAttribute('width', cellW);
+        rect.setAttribute('height', cellH);
+        rect.setAttribute('rx', 3);
+        rect.setAttribute('class', 'heat-cell' + (count === 0 ? ' empty' : ''));
+        if (count > 0) rect.style.fill = colorForIntensity(count, max);
+        rect.addEventListener('pointermove', ev => {
+          showTooltip(ev.clientX, ev.clientY, `${label}, ${hr}:00–${(hr + 1) % 24}:00 UTC`, [
+            ['Loans requested', count.toLocaleString()],
+          ]);
+        });
+        rect.addEventListener('pointerleave', hideTooltip);
+        svg.appendChild(rect);
+      }
+    });
+
+    [0, 3, 6, 9, 12, 15, 18, 21].forEach(hr => {
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', labelW + hr * cellW + cellW / 2); txt.setAttribute('y', PAD.t + 7 * cellH + 14);
+      txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = hr + ':00';
+      svg.appendChild(txt);
+    });
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+    renderHeatLegend(el, max);
+  }
+
+  function renderDayOfMonth(loans) {
+    const el = document.getElementById('chartDayOfMonth');
+    const counts = Array(31).fill(0);
+    loans.forEach(x => { counts[new Date(x.t * 1000).getUTCDate() - 1] += 1; });
+
+    const W = el.clientWidth || 1120, H = 200, PAD = { l: 36, r: 12, t: 10, b: 24 };
+    const max = Math.max(1, ...counts);
+    const niceMax = Math.ceil(max / 5) * 5 || max + 1;
+    const slotW = (W - PAD.l - PAD.r) / 31;
+    const barW = Math.min(20, slotW - 4);
+    const y = v => H - PAD.b - (v / niceMax) * (H - PAD.t - PAD.b);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = Math.round(niceMax * i / ticks);
+      const gy = y(v);
+      const line = document.createElementNS(svg.namespaceURI, 'line');
+      line.setAttribute('x1', PAD.l); line.setAttribute('x2', W - PAD.r);
+      line.setAttribute('y1', gy); line.setAttribute('y2', gy);
+      line.setAttribute('class', 'gridline');
+      svg.appendChild(line);
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', PAD.l - 8); txt.setAttribute('y', gy + 3);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = v.toLocaleString();
+      svg.appendChild(txt);
+    }
+
+    counts.forEach((count, i) => {
+      const cx = PAD.l + i * slotW + slotW / 2;
+      const barH = (count / niceMax) * (H - PAD.t - PAD.b);
+      const rect = document.createElementNS(svg.namespaceURI, 'rect');
+      rect.setAttribute('x', cx - barW / 2);
+      rect.setAttribute('y', y(count));
+      rect.setAttribute('width', barW);
+      rect.setAttribute('height', Math.max(1, barH));
+      rect.setAttribute('rx', 3);
+      rect.setAttribute('class', 'col-chart-bar');
+      rect.addEventListener('pointermove', ev => {
+        showTooltip(ev.clientX, ev.clientY, `Day ${i + 1} of month`, [['Loans requested', count.toLocaleString()]]);
+      });
+      rect.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(rect);
+
+      if ((i + 1) % 5 === 0 || i === 0) {
+        const txt = document.createElementNS(svg.namespaceURI, 'text');
+        txt.setAttribute('x', cx); txt.setAttribute('y', H - 6);
+        txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '10.5');
+        txt.textContent = i + 1;
+        svg.appendChild(txt);
+      }
+    });
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+  }
+
+  const SIZE_BUCKETS = [
+    { label: '<$100', min: 0, max: 100 },
+    { label: '$100–249', min: 100, max: 250 },
+    { label: '$250–499', min: 250, max: 500 },
+    { label: '$500–999', min: 500, max: 1000 },
+    { label: '$1,000–1,999', min: 1000, max: 2000 },
+    { label: '$2,000+', min: 2000, max: Infinity },
+  ];
+  const FEE_BUCKETS = [
+    { label: '0–10%', min: 0, max: 10 },
+    { label: '10–20%', min: 10, max: 20 },
+    { label: '20–30%', min: 20, max: 30 },
+    { label: '30–50%', min: 30, max: 50 },
+    { label: '50%+', min: 50, max: Infinity },
+  ];
+  function bucketIndex(buckets, v) {
+    for (let i = 0; i < buckets.length; i++) if (v >= buckets[i].min && v < buckets[i].max) return i;
+    return buckets.length - 1;
+  }
+
+  function renderHeatmapFeeSize(loans) {
+    const el = document.getElementById('heatmapFeeSize');
+    const withFee = loans.filter(x => x.f != null);
+    const grid = SIZE_BUCKETS.map(() => FEE_BUCKETS.map(() => 0));
+    withFee.forEach(x => {
+      grid[bucketIndex(SIZE_BUCKETS, x.p)][bucketIndex(FEE_BUCKETS, x.f)] += 1;
+    });
+    const max = Math.max(1, ...grid.flat());
+
+    const W = el.clientWidth || 1120;
+    const labelW = 104, PAD = { t: 4, r: 4, b: 30 };
+    const cellW = (W - labelW - PAD.r) / FEE_BUCKETS.length;
+    const cellH = 34;
+    const H = SIZE_BUCKETS.length * cellH + PAD.t + PAD.b;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    SIZE_BUCKETS.forEach((sb, row) => {
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', labelW - 8); txt.setAttribute('y', PAD.t + row * cellH + cellH / 2 + 4);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '11');
+      txt.textContent = sb.label;
+      svg.appendChild(txt);
+
+      FEE_BUCKETS.forEach((fb, col) => {
+        const count = grid[row][col];
+        const rect = document.createElementNS(svg.namespaceURI, 'rect');
+        rect.setAttribute('x', labelW + col * cellW);
+        rect.setAttribute('y', PAD.t + row * cellH);
+        rect.setAttribute('width', cellW);
+        rect.setAttribute('height', cellH);
+        rect.setAttribute('rx', 3);
+        rect.setAttribute('class', 'heat-cell' + (count === 0 ? ' empty' : ''));
+        if (count > 0) rect.style.fill = colorForIntensity(count, max);
+        rect.addEventListener('pointermove', ev => {
+          showTooltip(ev.clientX, ev.clientY, `${sb.label} loans, ${fb.label} fee`, [
+            ['Loan count', count.toLocaleString()],
+            ['Share of fee-tagged loans', withFee.length ? ((count / withFee.length) * 100).toFixed(1) + '%' : '—'],
+          ]);
+        });
+        rect.addEventListener('pointerleave', hideTooltip);
+        svg.appendChild(rect);
+
+        if (row === SIZE_BUCKETS.length - 1) {
+          const ftxt = document.createElementNS(svg.namespaceURI, 'text');
+          ftxt.setAttribute('x', labelW + col * cellW + cellW / 2); ftxt.setAttribute('y', H - PAD.b + 16);
+          ftxt.setAttribute('text-anchor', 'middle'); ftxt.setAttribute('font-size', '10.5');
+          ftxt.textContent = fb.label;
+          svg.appendChild(ftxt);
+        }
+      });
+    });
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+    renderHeatLegend(el, max);
+
+    const existingNote = el.querySelector('.fee-size-note');
+    if (existingNote) existingNote.remove();
+    if (withFee.length < loans.length && loans.length > 0) {
+      const note = document.createElement('p');
+      note.className = 'card-sub fee-size-note';
+      note.style.marginTop = '10px';
+      note.textContent = `${(loans.length - withFee.length).toLocaleString()} of ${loans.length.toLocaleString()} loans in this range don't have a parsed fee % and are excluded from this chart.`;
+      el.appendChild(note);
+    }
   }
 
   function renderAll() {
@@ -1369,9 +1705,15 @@
     lenderSection.render(currentAgg.lenders);
     borrowerSection.render(currentAgg.borrowers);
     pairsSection.render(currentAgg.pairs);
+    renderHeatmapActivity(currentFiltered);
+    renderDayOfMonth(currentFiltered);
+    renderHeatmapFeeSize(currentFiltered);
   }
 
   applyFilter();
-  window.addEventListener('resize', () => { renderTrend(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize(); });
+  window.addEventListener('resize', () => {
+    renderTrend(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize();
+    renderHeatmapActivity(currentFiltered); renderDayOfMonth(currentFiltered); renderHeatmapFeeSize(currentFiltered);
+  });
 })();
 </script>
