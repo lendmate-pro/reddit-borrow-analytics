@@ -1,4 +1,5 @@
 <title>r/borrow LIVE Analytics</title>
+<meta name="color-scheme" content="light dark">
 <style>
   .viz-root {
     color-scheme: light;
@@ -146,7 +147,7 @@
     padding: 14px 14px;
   }
   .stat-tile .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
-  .stat-tile .value { font-size: 20px; font-weight: 600; }
+  .stat-tile .value { font-size: 20px; font-weight: 600; color: var(--text-primary); }
 
   .card {
     background: var(--surface-1);
@@ -258,6 +259,7 @@
     padding: 9px 10px;
     border-bottom: 1px solid var(--gridline);
     font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
   }
   table.rank-table td.name-cell {
     text-align: left;
@@ -291,7 +293,7 @@
     text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--gridline);
   }
   table.detail-table th:first-child, table.detail-table td:first-child { text-align: left; }
-  table.detail-table td { text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  table.detail-table td { text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; color: var(--text-primary); }
   table.detail-table td.name-cell { text-align: left; font-variant-numeric: normal; color: var(--text-primary); }
   table.detail-table tbody tr:nth-child(odd) { background: rgba(128,128,128,0.04); }
   .repeat-chip {
