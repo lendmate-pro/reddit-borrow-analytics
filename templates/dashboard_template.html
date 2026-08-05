@@ -187,7 +187,9 @@
   }
   #refreshPageBtn:hover { filter: brightness(0.94); }
   #refreshPageBtn:active { transform: scale(0.96); }
-  #refreshPageBtn.spinning { animation: spin 0.6s linear; }
+  #refreshPageBtn:disabled { opacity: 0.75; cursor: default; }
+  #refreshPageBtn .refresh-icon { display: inline-block; }
+  #refreshPageBtn.spinning .refresh-icon { animation: spin 0.7s linear infinite; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
   .kpi-row {
@@ -536,7 +538,7 @@
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
       <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">__LAST_UPDATED__</div>
-      <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule.">↻ Refresh</button>
+      <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> Refresh</button>
     </header>
 
     <nav class="quick-nav" id="quickNav">
@@ -2145,10 +2147,12 @@
 
   // ---------- Refresh button: force-reload bypassing cache to check for the latest published version ----------
   document.getElementById('refreshPageBtn').addEventListener('click', ev => {
-    ev.target.classList.add('spinning');
+    const btn = ev.currentTarget;
+    btn.classList.add('spinning');
+    btn.disabled = true;
     const url = new URL(window.location.href);
     url.searchParams.set('_r', Date.now().toString());
-    window.location.href = url.toString();
+    setTimeout(() => { window.location.href = url.toString(); }, 350);
   });
 })();
 </script>
