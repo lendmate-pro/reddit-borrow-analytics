@@ -1,0 +1,1374 @@
+<title>r/borrow Lender &amp; Borrower Analytics</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --series-1-wash:  rgba(42,120,214,0.10);
+    --series-2:       #eb6834;
+    --series-2-wash:  rgba(235,104,52,0.10);
+    --seq-100: #cde2fb; --seq-200: #9ec5f4; --seq-300: #6da7ec;
+    --seq-400: #3987e5; --seq-450: #2a78d6; --seq-500: #256abf; --seq-600: #184f95;
+    --good: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-1-wash:  rgba(57,135,229,0.14);
+      --series-2:       #d95926;
+      --series-2-wash:  rgba(217,89,38,0.14);
+      --seq-100: #184f95; --seq-200: #1c5cab; --seq-300: #256abf;
+      --seq-400: #2a78d6; --seq-450: #3987e5; --seq-500: #5598e7; --seq-600: #86b6ef;
+      --good: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-1-wash:  rgba(57,135,229,0.14);
+    --series-2:       #d95926;
+    --series-2-wash:  rgba(217,89,38,0.14);
+    --seq-100: #184f95; --seq-200: #1c5cab; --seq-300: #256abf;
+    --seq-400: #2a78d6; --seq-450: #3987e5; --seq-500: #5598e7; --seq-600: #86b6ef;
+    --good: #0ca30c;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .viz-root {
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 20px 60px;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .viz-root.locked .wrap { display: none; }
+
+  #loginGate {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--page-plane);
+  }
+  #loginGate.hidden { display: none; }
+  .login-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 26px;
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .login-card h2 { font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  .login-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; }
+  .login-card label { font-size: 11.5px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 4px; }
+  .login-card input {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    color: var(--text-primary);
+    font-family: inherit;
+  }
+  .login-card input:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  .login-card button {
+    margin-top: 18px;
+    background: var(--series-1);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .login-card button:hover { filter: brightness(0.94); }
+  .login-error { font-size: 12px; color: #d03b3b; min-height: 16px; margin: 10px 0 0; }
+  header.page-header { margin-bottom: 18px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 10px; }
+  .dataset-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--series-1);
+    background: var(--series-1-wash);
+    border-radius: 20px;
+    padding: 5px 12px;
+  }
+  .date-filter-card { padding: 14px 20px; }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 14px;
+  }
+  .stat-tile .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+  .stat-tile .value { font-size: 20px; font-weight: 600; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .card .card-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; }
+  .section-heading {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 30px 0 12px;
+  }
+  .section-heading:first-of-type { margin-top: 4px; }
+
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filter-row input[type="search"] {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    min-width: 240px;
+    font-family: inherit;
+  }
+  .filter-row select, select.range-select {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 30px 8px 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23898781' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .filter-row select:focus, select.range-select:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  .filter-row .hint { font-size: 12px; color: var(--text-muted); }
+
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
+  .bar-label-value { fill: var(--text-primary); font-weight: 600; }
+  .bar-label-name { fill: var(--text-secondary); }
+  .axis-line { stroke: var(--baseline); stroke-width: 1; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .bar-rect { cursor: pointer; }
+  .bar-rect.hue-1 { fill: var(--series-1); }
+  .bar-rect.hue-1:hover { fill: var(--seq-500); }
+  .bar-rect.hue-2 { fill: var(--series-2); }
+  .bar-rect.hue-2:hover { filter: brightness(0.88); }
+  .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .trend-area { fill: var(--series-1-wash); }
+  .trend-dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--text-primary);
+    color: var(--surface-1);
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.08s ease;
+    max-width: 260px;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 14px; color: rgba(255,255,255,0.75); }
+  .tooltip .tt-row strong { color: inherit; font-weight: 600; }
+
+  table.rank-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.rank-table th {
+    text-align: right;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  table.rank-table th:first-child, table.rank-table td:first-child { text-align: left; }
+  table.rank-table th.active { color: var(--text-primary); }
+  table.rank-table th .arrow { font-size: 10px; margin-left: 2px; }
+  table.rank-table td {
+    text-align: right;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  table.rank-table td.name-cell {
+    text-align: left;
+    font-variant-numeric: normal;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  table.rank-table tbody tr { cursor: pointer; }
+  table.rank-table tbody tr:hover { background: var(--series-1-wash); }
+  table.rank-table tbody tr.expanded { background: var(--series-1-wash); }
+  .rank-num { color: var(--text-muted); font-size: 11.5px; margin-right: 6px; }
+
+  .detail-panel-row td { padding: 0; border-bottom: 1px solid var(--gridline); }
+  .detail-panel {
+    padding: 16px 20px 20px 34px;
+    background: var(--page-plane);
+  }
+  .detail-panel .dp-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .detail-panel .dp-head h3 { font-size: 13.5px; margin: 0; font-weight: 600; }
+  .detail-panel .dp-head .dp-sub { font-size: 12px; color: var(--text-muted); }
+  table.detail-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.detail-table th {
+    text-align: right; font-weight: 500; color: var(--text-muted); font-size: 11px;
+    text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--gridline);
+  }
+  table.detail-table th:first-child, table.detail-table td:first-child { text-align: left; }
+  table.detail-table td { text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  table.detail-table td.name-cell { text-align: left; font-variant-numeric: normal; color: var(--text-primary); }
+  table.detail-table tbody tr:nth-child(odd) { background: rgba(128,128,128,0.04); }
+  .repeat-chip {
+    display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 20px;
+    background: var(--series-1-wash); color: var(--series-1); margin-left: 6px; font-weight: 600;
+  }
+
+  .top-n-toggle { display: flex; gap: 4px; }
+  .top-n-toggle button {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .top-n-toggle button.active { background: var(--series-1); color: #fff; border-color: var(--series-1); }
+
+  .pagination-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gridline);
+  }
+  .pagination-row .page-info { font-size: 12px; color: var(--text-muted); }
+  .pagination-row button {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .pagination-row button:disabled { opacity: 0.4; cursor: default; }
+  .pagination-row button:not(:disabled):hover { background: var(--series-1-wash); color: var(--text-primary); }
+
+  footer.notes {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  footer.notes b { color: var(--text-secondary); }
+
+  @media (max-width: 860px) {
+    .kpi-row { grid-template-columns: repeat(4, 1fr); }
+    table.rank-table { font-size: 12px; }
+  }
+  @media (max-width: 560px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="viz-root locked">
+  <div id="loginGate">
+    <form id="loginForm" class="login-card">
+      <h2>r/borrow Lender &amp; Borrower Analytics</h2>
+      <p class="login-sub">Sign in to view this dashboard.</p>
+      <label for="loginUser">Username</label>
+      <input type="text" id="loginUser" autocomplete="username" required />
+      <label for="loginPass">Password</label>
+      <input type="password" id="loginPass" autocomplete="current-password" required />
+      <button type="submit">Sign in</button>
+      <p class="login-error" id="loginError"></p>
+    </form>
+  </div>
+  <script>
+  (function () {
+    var AUTH_HASH = '__AUTH_HASH__';
+    var AUTH_KEY = 'borrowDashboardAuthed_v1';
+    var rootEl = document.querySelector('.viz-root');
+    var gateEl = document.getElementById('loginGate');
+    var formEl = document.getElementById('loginForm');
+    var errEl = document.getElementById('loginError');
+
+    function sha256Hex(str) {
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+      });
+    }
+
+    function unlock() {
+      gateEl.classList.add('hidden');
+      rootEl.classList.remove('locked');
+    }
+
+    try {
+      if (sessionStorage.getItem(AUTH_KEY) === '1') unlock();
+    } catch (e) { /* sessionStorage unavailable (e.g. sandboxed iframe) — fall through to login form */ }
+
+    formEl.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var u = document.getElementById('loginUser').value.trim();
+      var p = document.getElementById('loginPass').value;
+      sha256Hex(u + ':' + p).then(function (hash) {
+        if (hash === AUTH_HASH) {
+          try { sessionStorage.setItem(AUTH_KEY, '1'); } catch (e) {}
+          errEl.textContent = '';
+          unlock();
+        } else {
+          errEl.textContent = 'Incorrect username or password.';
+        }
+      });
+    });
+  })();
+  </script>
+  <div class="wrap">
+    <header class="page-header">
+      <h1>r/borrow Lender &amp; Borrower Analytics</h1>
+      <p class="subtitle" id="subtitleText">Loading…</p>
+      <div class="dataset-badge" id="datasetBadge"></div>
+    </header>
+
+    <div class="card date-filter-card">
+      <div class="filter-row" style="margin-bottom:0;">
+        <label class="hint" for="dateRangeSelect">Date range</label>
+        <select id="dateRangeSelect" class="range-select">
+          <option value="today">Today</option>
+          <option value="7">Last 7 days</option>
+          <option value="15">Last 15 days</option>
+          <option value="30">Last 1 month</option>
+          <option value="90">Last 3 months</option>
+          <option value="all" id="allRangeOption" selected>All time</option>
+        </select>
+        <span class="hint" id="rangeSummary"></span>
+      </div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="card">
+      <h2>Loan volume over time</h2>
+      <p class="card-sub" id="trendSub">Number of confirmed loans funded, all lenders combined</p>
+      <div id="trendChart"></div>
+    </div>
+
+    <div class="section-heading">Lenders</div>
+
+    <div class="card">
+      <h2>Top lenders by number of loans funded</h2>
+      <p class="card-sub">Ranked by loan count within the selected date range. Click a bar or table row for that lender's borrower breakdown.</p>
+      <div class="filter-row">
+        <span class="hint">Show top</span>
+        <div class="top-n-toggle" id="toggle-lenders">
+          <button data-n="10">10</button>
+          <button data-n="15" class="active">15</button>
+          <button data-n="25">25</button>
+        </div>
+        <span class="hint">Rank by</span>
+        <div class="top-n-toggle" id="metric-lenders">
+          <button data-metric="num_loans" class="active">Loan count</button>
+          <button data-metric="total_amount">$ volume</button>
+        </div>
+      </div>
+      <div id="bar-lenders"></div>
+    </div>
+
+    <div class="card">
+      <h2>All lenders</h2>
+      <p class="card-sub">Click a column header to sort. Click a row to see that lender's borrowers — who they lend to, how often, and when.</p>
+      <div class="filter-row">
+        <input type="search" id="search-lenders" placeholder="Search lender username…" />
+        <label class="hint" for="pagesize-lenders">Rows per page</label>
+        <select id="pagesize-lenders" class="range-select">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="all">All</option>
+        </select>
+        <span class="hint" id="count-lenders"></span>
+      </div>
+      <table class="rank-table" id="table-lenders">
+        <thead>
+          <tr>
+            <th data-key="name" style="text-align:left">Lender</th>
+            <th data-key="num_loans">Loans</th>
+            <th data-key="total_amount">Total $</th>
+            <th data-key="avg_loan_size">Avg $</th>
+            <th data-key="avg_interest_pct">Avg Fee</th>
+            <th data-key="avg_duration_days">Avg Days</th>
+            <th data-key="repaid_rate_pct">Repaid</th>
+            <th data-key="unique_others">Borrowers</th>
+            <th data-key="repeat_others_pct">Repeat%</th>
+            <th data-key="primary_other_pct">Primary Borrower</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-lenders"></tbody>
+      </table>
+      <div class="pagination-row" id="pagination-lenders"></div>
+    </div>
+
+    <div class="section-heading">Borrowers</div>
+
+    <div class="card">
+      <h2>Top borrowers by number of loans taken</h2>
+      <p class="card-sub">Ranked by loan count within the selected date range. Click a bar or table row for that borrower's lender breakdown.</p>
+      <div class="filter-row">
+        <span class="hint">Show top</span>
+        <div class="top-n-toggle" id="toggle-borrowers">
+          <button data-n="10">10</button>
+          <button data-n="15" class="active">15</button>
+          <button data-n="25">25</button>
+        </div>
+        <span class="hint">Rank by</span>
+        <div class="top-n-toggle" id="metric-borrowers">
+          <button data-metric="num_loans" class="active">Loan count</button>
+          <button data-metric="total_amount">$ volume</button>
+        </div>
+      </div>
+      <div id="bar-borrowers"></div>
+    </div>
+
+    <div class="card">
+      <h2>All borrowers</h2>
+      <p class="card-sub">Click a column header to sort. Click a row to see who this borrower has taken loans from, how often, and when.</p>
+      <div class="filter-row">
+        <input type="search" id="search-borrowers" placeholder="Search borrower username…" />
+        <label class="hint" for="pagesize-borrowers">Rows per page</label>
+        <select id="pagesize-borrowers" class="range-select">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="all">All</option>
+        </select>
+        <span class="hint" id="count-borrowers"></span>
+      </div>
+      <table class="rank-table" id="table-borrowers">
+        <thead>
+          <tr>
+            <th data-key="name" style="text-align:left">Borrower</th>
+            <th data-key="num_loans">Loans</th>
+            <th data-key="total_amount">Total $</th>
+            <th data-key="avg_loan_size">Avg $</th>
+            <th data-key="avg_interest_pct">Avg Fee</th>
+            <th data-key="avg_duration_days">Avg Days</th>
+            <th data-key="repaid_rate_pct">Repaid</th>
+            <th data-key="unique_others">Lenders</th>
+            <th data-key="repeat_others_pct">Repeat%</th>
+            <th data-key="primary_other_pct">Primary Lender</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-borrowers"></tbody>
+      </table>
+      <div class="pagination-row" id="pagination-borrowers"></div>
+    </div>
+
+    <div class="section-heading">Lender ↔ Borrower Relationships</div>
+
+    <div class="card">
+      <h2>Strongest recurring lending relationships</h2>
+      <p class="card-sub">Every lender-borrower pair ranked by how many loans they've done together within the selected date range — the direct answer to "who funds whom, repeatedly."</p>
+      <div class="filter-row">
+        <span class="hint">Show top</span>
+        <div class="top-n-toggle" id="toggle-pairs">
+          <button data-n="10">10</button>
+          <button data-n="15" class="active">15</button>
+          <button data-n="25">25</button>
+        </div>
+      </div>
+      <div id="bar-pairs"></div>
+    </div>
+
+    <div class="card">
+      <h2>All lender-borrower pairs</h2>
+      <p class="card-sub">Search by either username. Click a column header to sort.</p>
+      <div class="filter-row">
+        <input type="search" id="search-pairs" placeholder="Search lender or borrower username…" />
+        <label class="hint" for="pagesize-pairs">Rows per page</label>
+        <select id="pagesize-pairs" class="range-select">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="all">All</option>
+        </select>
+        <span class="hint" id="count-pairs"></span>
+      </div>
+      <table class="rank-table" id="table-pairs">
+        <thead>
+          <tr>
+            <th data-key="lender" style="text-align:left">Lender</th>
+            <th data-key="borrower" style="text-align:left">Borrower</th>
+            <th data-key="count">Loans</th>
+            <th data-key="total_amount">Total $</th>
+            <th data-key="avg_loan_size">Avg $</th>
+            <th data-key="first_t">First loan</th>
+            <th data-key="last_t">Last loan</th>
+            <th data-key="repaid_count">Repaid</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-pairs"></tbody>
+      </table>
+      <div class="pagination-row" id="pagination-pairs"></div>
+    </div>
+
+    <footer class="notes">
+      <p><b>Source:</b> r/borrow's own LoansBot confirmation ledger (loan-creation and repayment comments), cross-referenced with each request post's stated terms. Pulled via a public Reddit archive, not Reddit's live API.</p>
+      <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Fee/interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
+    </footer>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
+<script>
+(function () {
+  const RAW = JSON.parse(document.getElementById('dashboard-data').textContent);
+  const fmtMoney = n => n == null ? '—' : '$' + Math.round(n).toLocaleString();
+  const fmtNum = n => n == null ? '—' : n.toLocaleString();
+  const fmtPct = n => n == null ? '—' : n.toFixed(1) + '%';
+  const fmtDays = n => n == null ? '—' : n.toFixed(1);
+  const fmtDate = t => {
+    if (t == null) return '—';
+    return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  };
+  const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+
+  // ---------- Generic grouping / aggregation (used both lender->borrower and borrower->lender) ----------
+  function groupLoans(loans, keyField) {
+    const map = new Map();
+    for (const x of loans) {
+      const key = x[keyField].toLowerCase();
+      if (!map.has(key)) map.set(key, { display: x[keyField], items: [] });
+      map.get(key).items.push(x);
+    }
+    return map;
+  }
+
+  function summarizeGroup(display, items, otherField) {
+    const n = items.length;
+    const totalAmt = items.reduce((s, x) => s + x.p, 0);
+    const fees = items.filter(x => x.f != null).map(x => x.f);
+    const durs = items.filter(x => x.d != null).map(x => x.d);
+    const nRepaid = items.filter(x => x.r === 1).length;
+
+    const others = [];
+    for (const { display: odisplay, items: oitems } of groupLoans(items, otherField).values()) {
+      const oTotal = oitems.reduce((s, x) => s + x.p, 0);
+      const times = oitems.map(x => x.t).sort((a, b) => a - b);
+      others.push({
+        name: odisplay,
+        count: oitems.length,
+        total: oTotal,
+        avg: oTotal / oitems.length,
+        first_t: times[0],
+        last_t: times[times.length - 1],
+        repaid_count: oitems.filter(x => x.r === 1).length,
+      });
+    }
+    others.sort((a, b) => b.count - a.count);
+    const uniqueOthers = others.length;
+    const repeatOthers = others.filter(o => o.count > 1).length;
+    const loanTimes = items.map(x => x.t).sort((a, b) => a - b);
+    const primary = others[0] || null;
+
+    return {
+      name: display,
+      num_loans: n,
+      total_amount: totalAmt,
+      avg_loan_size: totalAmt / n,
+      avg_interest_pct: fees.length ? avg(fees) : null,
+      avg_duration_days: durs.length ? avg(durs) : null,
+      repaid_rate_pct: (nRepaid / n) * 100,
+      unique_others: uniqueOthers,
+      repeat_others: repeatOthers,
+      repeat_others_pct: uniqueOthers ? (repeatOthers / uniqueOthers) * 100 : 0,
+      top_others: others.slice(0, 10),
+      primary_other_name: primary ? primary.name : null,
+      primary_other_count: primary ? primary.count : null,
+      primary_other_pct: primary ? (primary.count / n) * 100 : null,
+      first_t: loanTimes[0],
+      last_t: loanTimes[loanTimes.length - 1],
+    };
+  }
+
+  function aggregatePairs(loans) {
+    const map = new Map();
+    for (const x of loans) {
+      const key = x.l.toLowerCase() + '||' + x.b.toLowerCase();
+      if (!map.has(key)) map.set(key, { lender: x.l, borrower: x.b, items: [] });
+      map.get(key).items.push(x);
+    }
+    const pairs = [];
+    for (const { lender, borrower, items } of map.values()) {
+      const total = items.reduce((s, x) => s + x.p, 0);
+      const times = items.map(x => x.t).sort((a, b) => a - b);
+      pairs.push({
+        lender, borrower,
+        count: items.length,
+        total_amount: total,
+        avg_loan_size: total / items.length,
+        first_t: times[0],
+        last_t: times[times.length - 1],
+        repaid_count: items.filter(x => x.r === 1).length,
+      });
+    }
+    pairs.sort((a, b) => b.count - a.count);
+    return pairs;
+  }
+
+  function aggregateBy(loans, keyField, otherField) {
+    const result = [];
+    for (const { display, items } of groupLoans(loans, keyField).values()) {
+      result.push(summarizeGroup(display, items, otherField));
+    }
+    result.sort((a, b) => b.num_loans - a.num_loans);
+    return result;
+  }
+
+  function computeOverall(loans) {
+    const totalDollars = loans.reduce((s, x) => s + x.p, 0);
+    const fees = loans.filter(x => x.f != null).map(x => x.f);
+    const durs = loans.filter(x => x.d != null).map(x => x.d);
+    return {
+      total_loans: loans.length,
+      total_dollars: totalDollars,
+      avg_loan_size: loans.length ? totalDollars / loans.length : 0,
+      avg_interest_pct: fees.length ? avg(fees) : null,
+      avg_duration_days: durs.length ? avg(durs) : null,
+      unique_lenders: new Set(loans.map(x => x.l.toLowerCase())).size,
+      unique_borrowers: new Set(loans.map(x => x.b.toLowerCase())).size,
+    };
+  }
+
+  function buildTrend(loans, windowStart, windowEnd) {
+    const spanDays = Math.max(1, (windowEnd - windowStart) / 86400);
+    const daily = spanDays <= 35;
+    const bucketMap = new Map();
+    const order = [];
+    const dayKey = t => new Date(t * 1000).toISOString().slice(0, 10);
+    const monthKey = t => {
+      const d = new Date(t * 1000);
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    };
+    const keyFn = daily ? dayKey : monthKey;
+    const ensure = k => { if (!bucketMap.has(k)) { bucketMap.set(k, { loans: 0, dollars: 0 }); order.push(k); } };
+
+    if (daily) {
+      for (let t = Math.floor(windowStart / 86400) * 86400; t <= windowEnd; t += 86400) ensure(dayKey(t));
+    } else {
+      let cursor = new Date(Date.UTC(new Date(windowStart * 1000).getUTCFullYear(), new Date(windowStart * 1000).getUTCMonth(), 1));
+      const endMonth = new Date(Date.UTC(new Date(windowEnd * 1000).getUTCFullYear(), new Date(windowEnd * 1000).getUTCMonth(), 1));
+      while (cursor <= endMonth) {
+        ensure(monthKey(cursor.getTime() / 1000));
+        cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+      }
+    }
+    loans.forEach(x => {
+      const k = keyFn(x.t);
+      ensure(k);
+      const b = bucketMap.get(k);
+      b.loans += 1; b.dollars += x.p;
+    });
+
+    const keys = order.slice().sort();
+    return keys.map(k => {
+      const label = daily
+        ? new Date(k + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+        : (([y, m]) => new Date(Date.UTC(+y, +m - 1, 1)).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }))(k.split('-'));
+      const b = bucketMap.get(k);
+      return { label, loans: b.loans, dollars: b.dollars };
+    });
+  }
+
+  // ---------- Persistent dataset badge (does not change with filter) ----------
+  function formatSpan(startT, endT) {
+    const days = Math.max(1, Math.round((endT - startT) / 86400));
+    if (days < 60) return `${days} day${days === 1 ? '' : 's'}`;
+    const months = Math.round(days / 30.44);
+    return `${months} month${months === 1 ? '' : 's'}`;
+  }
+  const fullSpanLabel = formatSpan(RAW.range.min_t, RAW.range.max_t);
+  document.getElementById('datasetBadge').textContent =
+    `Full dataset window: ${fullSpanLabel} (${fmtDate(RAW.range.min_t)} – ${fmtDate(RAW.range.max_t)})`;
+  document.getElementById('allRangeOption').textContent = `All time (${fullSpanLabel})`;
+
+  // ---------- Tooltip ----------
+  const tooltip = document.getElementById('tooltip');
+  function showTooltip(x, y, titleText, rows) {
+    tooltip.innerHTML = '';
+    const t = document.createElement('div'); t.className = 'tt-title'; t.textContent = titleText;
+    tooltip.appendChild(t);
+    rows.forEach(([label, value]) => {
+      const r = document.createElement('div'); r.className = 'tt-row';
+      const l = document.createElement('span'); l.textContent = label;
+      const v = document.createElement('strong'); v.textContent = value;
+      r.appendChild(l); r.appendChild(v);
+      tooltip.appendChild(r);
+    });
+    tooltip.style.left = Math.min(x + 14, window.innerWidth - 270) + 'px';
+    tooltip.style.top = (y + 14) + 'px';
+    tooltip.classList.add('show');
+  }
+  function hideTooltip() { tooltip.classList.remove('show'); }
+
+  // ---------- Shared pagination control ----------
+  function renderPaginationControl(containerEl, total, pageSize, page, onPageChange) {
+    containerEl.innerHTML = '';
+    if (!total) return;
+    if (pageSize === Infinity) {
+      const info = document.createElement('span'); info.className = 'page-info';
+      info.textContent = `Showing all ${total.toLocaleString()}`;
+      containerEl.appendChild(info);
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const startIdx = (page - 1) * pageSize + 1;
+    const endIdx = Math.min(total, page * pageSize);
+
+    const info = document.createElement('span'); info.className = 'page-info';
+    info.textContent = `${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${total.toLocaleString()} · page ${page} of ${totalPages}`;
+    const prev = document.createElement('button'); prev.textContent = 'Prev'; prev.disabled = page <= 1;
+    prev.addEventListener('click', () => onPageChange(page - 1));
+    const next = document.createElement('button'); next.textContent = 'Next'; next.disabled = page >= totalPages;
+    next.addEventListener('click', () => onPageChange(page + 1));
+
+    containerEl.appendChild(info);
+    containerEl.appendChild(prev);
+    containerEl.appendChild(next);
+  }
+
+  // ---------- Generic ranking section (bar chart + sortable table + drill-down panel) ----------
+  function initRankingSection(opts) {
+    // opts: idPrefix, barHue ('hue-1'|'hue-2'), entityWord, counterpartWord
+    let topN = 15;
+    let barMetric = 'num_loans';
+    let sortKey = 'num_loans', sortDir = -1;
+    let searchTerm = '';
+    let expanded = null;
+    let list = [];
+    let pageSize = 50;
+    let currentPage = 1;
+
+    const barEl = document.getElementById('bar-' + opts.idPrefix);
+    const toggleEl = document.getElementById('toggle-' + opts.idPrefix);
+    const metricEl = document.getElementById('metric-' + opts.idPrefix);
+    const searchEl = document.getElementById('search-' + opts.idPrefix);
+    const countEl = document.getElementById('count-' + opts.idPrefix);
+    const tbodyEl = document.getElementById('tbody-' + opts.idPrefix);
+    const tableEl = document.getElementById('table-' + opts.idPrefix);
+    const pagesizeEl = document.getElementById('pagesize-' + opts.idPrefix);
+    const paginationEl = document.getElementById('pagination-' + opts.idPrefix);
+
+    function renderBars() {
+      const fmtMetric = barMetric === 'total_amount' ? fmtMoney : fmtNum;
+      const sorted = list.slice().sort((a, b) => b[barMetric] - a[barMetric]).slice(0, topN);
+      if (!sorted.length) { barEl.innerHTML = ''; return; }
+      const W = barEl.clientWidth || 1120;
+      const rowH = 30, labelW = 190, PAD = { t: 4, r: 60, b: 4 };
+      const H = sorted.length * rowH + PAD.t + PAD.b;
+      const maxV = sorted[0][barMetric];
+      const barMaxW = W - labelW - PAD.r;
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+      sorted.forEach((d, i) => {
+        const cy = PAD.t + i * rowH;
+        const barW = Math.max(2, (d[barMetric] / maxV) * barMaxW);
+
+        const nameTxt = document.createElementNS(svg.namespaceURI, 'text');
+        nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
+        nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
+        nameTxt.setAttribute('class', 'bar-label-name');
+        nameTxt.textContent = `${i + 1}. ${d.name}`;
+        svg.appendChild(nameTxt);
+
+        const rect = document.createElementNS(svg.namespaceURI, 'rect');
+        rect.setAttribute('x', labelW); rect.setAttribute('y', cy + (rowH - 18) / 2);
+        rect.setAttribute('width', barW); rect.setAttribute('height', 18);
+        rect.setAttribute('rx', 4);
+        rect.setAttribute('class', 'bar-rect ' + opts.barHue);
+        rect.addEventListener('pointermove', ev => {
+          showTooltip(ev.clientX, ev.clientY, d.name, [
+            [`${opts.entityWordCap} loans`, d.num_loans.toLocaleString()],
+            ['Total $', fmtMoney(d.total_amount)],
+            ['Avg loan size', fmtMoney(d.avg_loan_size)],
+            ['Avg fee', fmtPct(d.avg_interest_pct)],
+            [`Unique ${opts.counterpartWordPlural}`, d.unique_others.toLocaleString()],
+          ]);
+        });
+        rect.addEventListener('pointerleave', hideTooltip);
+        rect.addEventListener('click', () => selectByName(d.name));
+        svg.appendChild(rect);
+
+        const valTxt = document.createElementNS(svg.namespaceURI, 'text');
+        valTxt.setAttribute('x', labelW + barW + 8); valTxt.setAttribute('y', cy + rowH / 2 + 4);
+        valTxt.setAttribute('font-size', '12.5'); valTxt.setAttribute('class', 'bar-label-value');
+        valTxt.textContent = fmtMetric(d[barMetric]);
+        svg.appendChild(valTxt);
+      });
+
+      barEl.innerHTML = '';
+      barEl.appendChild(svg);
+    }
+
+    function buildDetailPanel(rec) {
+      const panel = document.createElement('div');
+      panel.className = 'detail-panel';
+      const head = document.createElement('div'); head.className = 'dp-head';
+      const h3 = document.createElement('h3');
+      h3.textContent = `${rec.name}'s ${opts.counterpartWordPlural}`;
+      const sub = document.createElement('span'); sub.className = 'dp-sub';
+      sub.textContent = `${rec.unique_others} unique ${opts.counterpartWordPlural} · ${rec.repeat_others} repeat (${fmtPct(rec.repeat_others_pct)}) · active ${fmtDate(rec.first_t)} – ${fmtDate(rec.last_t)}`;
+      head.appendChild(h3); head.appendChild(sub);
+      panel.appendChild(head);
+
+      const table = document.createElement('table');
+      table.className = 'detail-table';
+      const thead = document.createElement('thead');
+      const htr = document.createElement('tr');
+      [opts.counterpartWordCap, 'Loans together', 'Total $', 'Avg $', 'First loan', 'Last loan', 'Repaid']
+        .forEach(label => { const th = document.createElement('th'); th.textContent = label; htr.appendChild(th); });
+      thead.appendChild(htr); table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      rec.top_others.forEach(o => {
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td'); nameTd.className = 'name-cell';
+        nameTd.textContent = o.name;
+        if (o.count > 1) {
+          const chip = document.createElement('span'); chip.className = 'repeat-chip';
+          chip.textContent = `${o.count}×`;
+          nameTd.appendChild(chip);
+        }
+        tr.appendChild(nameTd);
+        [fmtNum(o.count), fmtMoney(o.total), fmtMoney(o.avg), fmtDate(o.first_t), fmtDate(o.last_t), `${o.repaid_count}/${o.count}`]
+          .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      panel.appendChild(table);
+
+      if (rec.unique_others > rec.top_others.length) {
+        const more = document.createElement('p');
+        more.className = 'dp-sub';
+        more.style.marginTop = '10px';
+        more.textContent = `+ ${rec.unique_others - rec.top_others.length} more ${opts.counterpartWordPlural} not shown (top ${rec.top_others.length} by loan count above)`;
+        panel.appendChild(more);
+      }
+      return panel;
+    }
+
+    function renderTable() {
+      tbodyEl.innerHTML = '';
+      let rows = list.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      rows.sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+        return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
+      });
+      countEl.textContent = `${rows.length} ${rows.length === 1 ? opts.entityWord : opts.entityWordPlural}`;
+
+      const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const pageRows = pageSize === Infinity ? rows : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+      const rankOffset = pageSize === Infinity ? 0 : (currentPage - 1) * pageSize;
+
+      pageRows.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        tr.dataset.name = r.name;
+        if (r.name === expanded) tr.classList.add('expanded');
+
+        const nameTd = document.createElement('td'); nameTd.className = 'name-cell';
+        const rankSpan = document.createElement('span'); rankSpan.className = 'rank-num'; rankSpan.textContent = (rankOffset + idx + 1) + '.';
+        nameTd.appendChild(rankSpan);
+        nameTd.appendChild(document.createTextNode(r.name));
+        tr.appendChild(nameTd);
+
+        [fmtNum(r.num_loans), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtPct(r.avg_interest_pct),
+         fmtDays(r.avg_duration_days), fmtPct(r.repaid_rate_pct), fmtNum(r.unique_others), fmtPct(r.repeat_others_pct)]
+          .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+
+        const primaryTd = document.createElement('td');
+        primaryTd.textContent = r.primary_other_name
+          ? `${r.primary_other_name} (${r.primary_other_count}×, ${fmtPct(r.primary_other_pct)})`
+          : '—';
+        tr.appendChild(primaryTd);
+
+        tr.addEventListener('click', () => {
+          expanded = expanded === r.name ? null : r.name;
+          renderTable();
+        });
+        tbodyEl.appendChild(tr);
+
+        if (r.name === expanded) {
+          const panelRow = document.createElement('tr');
+          panelRow.className = 'detail-panel-row';
+          const td = document.createElement('td');
+          td.colSpan = 10;
+          td.appendChild(buildDetailPanel(r));
+          panelRow.appendChild(td);
+          tbodyEl.appendChild(panelRow);
+        }
+      });
+
+      tableEl.querySelectorAll('th').forEach(th => {
+        th.classList.toggle('active', th.dataset.key === sortKey);
+        th.querySelector('.arrow')?.remove();
+        if (th.dataset.key === sortKey) {
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = sortDir === 1 ? '↑' : '↓';
+          th.appendChild(arrow);
+        }
+      });
+
+      renderPaginationControl(paginationEl, rows.length, pageSize, currentPage, newPage => {
+        currentPage = newPage;
+        renderTable();
+      });
+    }
+
+    function selectByName(name) {
+      expanded = expanded === name ? null : name;
+      searchTerm = '';
+      searchEl.value = '';
+      currentPage = 1;
+      renderTable();
+      tableEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    toggleEl.addEventListener('click', ev => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      topN = +btn.dataset.n;
+      [...toggleEl.children].forEach(b => b.classList.toggle('active', b === btn));
+      renderBars();
+    });
+    metricEl.addEventListener('click', ev => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      barMetric = btn.dataset.metric;
+      [...metricEl.children].forEach(b => b.classList.toggle('active', b === btn));
+      renderBars();
+    });
+    searchEl.addEventListener('input', ev => { searchTerm = ev.target.value; currentPage = 1; renderTable(); });
+    pagesizeEl.addEventListener('change', ev => {
+      pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value;
+      currentPage = 1;
+      renderTable();
+    });
+    tableEl.querySelectorAll('th[data-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = key === 'name' ? 1 : -1; }
+        currentPage = 1;
+        renderTable();
+      });
+    });
+
+    return {
+      render(newList) { list = newList; expanded = null; currentPage = 1; renderBars(); renderTable(); },
+      resize() { renderBars(); },
+    };
+  }
+
+  // ---------- Lender-borrower pairs section ----------
+  function initPairsSection() {
+    let topN = 15;
+    let sortKey = 'count', sortDir = -1;
+    let searchTerm = '';
+    let list = [];
+    let pageSize = 50;
+    let currentPage = 1;
+
+    const barEl = document.getElementById('bar-pairs');
+    const toggleEl = document.getElementById('toggle-pairs');
+    const searchEl = document.getElementById('search-pairs');
+    const countEl = document.getElementById('count-pairs');
+    const tbodyEl = document.getElementById('tbody-pairs');
+    const tableEl = document.getElementById('table-pairs');
+    const pagesizeEl = document.getElementById('pagesize-pairs');
+    const paginationEl = document.getElementById('pagination-pairs');
+
+    function renderBars() {
+      const sorted = list.slice(0, topN);
+      if (!sorted.length) { barEl.innerHTML = ''; return; }
+      const W = barEl.clientWidth || 1120;
+      const rowH = 30, labelW = 260, PAD = { t: 4, r: 60, b: 4 };
+      const H = sorted.length * rowH + PAD.t + PAD.b;
+      const maxV = sorted[0].count;
+      const barMaxW = W - labelW - PAD.r;
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+      sorted.forEach((d, i) => {
+        const cy = PAD.t + i * rowH;
+        const barW = Math.max(2, (d.count / maxV) * barMaxW);
+
+        const nameTxt = document.createElementNS(svg.namespaceURI, 'text');
+        nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
+        nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
+        nameTxt.setAttribute('class', 'bar-label-name');
+        nameTxt.textContent = `${i + 1}. ${d.lender} → ${d.borrower}`;
+        svg.appendChild(nameTxt);
+
+        const rect = document.createElementNS(svg.namespaceURI, 'rect');
+        rect.setAttribute('x', labelW); rect.setAttribute('y', cy + (rowH - 18) / 2);
+        rect.setAttribute('width', barW); rect.setAttribute('height', 18);
+        rect.setAttribute('rx', 4);
+        rect.setAttribute('class', 'bar-rect hue-1');
+        rect.addEventListener('pointermove', ev => {
+          showTooltip(ev.clientX, ev.clientY, `${d.lender} → ${d.borrower}`, [
+            ['Loans together', d.count.toLocaleString()],
+            ['Total $', fmtMoney(d.total_amount)],
+            ['Avg loan size', fmtMoney(d.avg_loan_size)],
+            ['First loan', fmtDate(d.first_t)],
+            ['Last loan', fmtDate(d.last_t)],
+          ]);
+        });
+        rect.addEventListener('pointerleave', hideTooltip);
+        svg.appendChild(rect);
+
+        const valTxt = document.createElementNS(svg.namespaceURI, 'text');
+        valTxt.setAttribute('x', labelW + barW + 8); valTxt.setAttribute('y', cy + rowH / 2 + 4);
+        valTxt.setAttribute('font-size', '12.5'); valTxt.setAttribute('class', 'bar-label-value');
+        valTxt.textContent = d.count.toLocaleString();
+        svg.appendChild(valTxt);
+      });
+
+      barEl.innerHTML = '';
+      barEl.appendChild(svg);
+    }
+
+    function renderTable() {
+      tbodyEl.innerHTML = '';
+      const term = searchTerm.toLowerCase();
+      let rows = list.filter(r => r.lender.toLowerCase().includes(term) || r.borrower.toLowerCase().includes(term));
+      rows.sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+        return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
+      });
+      countEl.textContent = `${rows.length} pair${rows.length === 1 ? '' : 's'}`;
+
+      const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const pageRows = pageSize === Infinity ? rows : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+      const rankOffset = pageSize === Infinity ? 0 : (currentPage - 1) * pageSize;
+
+      pageRows.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
+
+        const lenderTd = document.createElement('td'); lenderTd.className = 'name-cell';
+        const rankSpan = document.createElement('span'); rankSpan.className = 'rank-num'; rankSpan.textContent = (rankOffset + idx + 1) + '.';
+        lenderTd.appendChild(rankSpan);
+        lenderTd.appendChild(document.createTextNode(r.lender));
+        tr.appendChild(lenderTd);
+
+        const borrowerTd = document.createElement('td'); borrowerTd.className = 'name-cell';
+        borrowerTd.textContent = r.borrower;
+        tr.appendChild(borrowerTd);
+
+        [fmtNum(r.count), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtDate(r.first_t), fmtDate(r.last_t), `${r.repaid_count}/${r.count}`]
+          .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+
+        tbodyEl.appendChild(tr);
+      });
+
+      tableEl.querySelectorAll('th').forEach(th => {
+        th.classList.toggle('active', th.dataset.key === sortKey);
+        th.querySelector('.arrow')?.remove();
+        if (th.dataset.key === sortKey) {
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = sortDir === 1 ? '↑' : '↓';
+          th.appendChild(arrow);
+        }
+      });
+
+      renderPaginationControl(paginationEl, rows.length, pageSize, currentPage, newPage => {
+        currentPage = newPage;
+        renderTable();
+      });
+    }
+
+    toggleEl.addEventListener('click', ev => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      topN = +btn.dataset.n;
+      [...toggleEl.children].forEach(b => b.classList.toggle('active', b === btn));
+      renderBars();
+    });
+    searchEl.addEventListener('input', ev => { searchTerm = ev.target.value; currentPage = 1; renderTable(); });
+    pagesizeEl.addEventListener('change', ev => {
+      pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value;
+      currentPage = 1;
+      renderTable();
+    });
+    tableEl.querySelectorAll('th[data-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = (key === 'lender' || key === 'borrower') ? 1 : -1; }
+        currentPage = 1;
+        renderTable();
+      });
+    });
+
+    return {
+      render(newList) { list = newList; currentPage = 1; renderBars(); renderTable(); },
+      resize() { renderBars(); },
+    };
+  }
+
+  const lenderSection = initRankingSection({
+    idPrefix: 'lenders', barHue: 'hue-1',
+    entityWord: 'lender', entityWordPlural: 'lenders', entityWordCap: 'Lender',
+    counterpartWord: 'borrower', counterpartWordPlural: 'borrowers', counterpartWordCap: 'Borrower',
+  });
+  const borrowerSection = initRankingSection({
+    idPrefix: 'borrowers', barHue: 'hue-2',
+    entityWord: 'borrower', entityWordPlural: 'borrowers', entityWordCap: 'Borrower',
+    counterpartWord: 'lender', counterpartWordPlural: 'lenders', counterpartWordCap: 'Lender',
+  });
+  const pairsSection = initPairsSection();
+
+  // ---------- Date range filter state ----------
+  const RANGE_LABELS = { 'today': 'Today', '7': 'Last 7 days', '15': 'Last 15 days', '30': 'Last 1 month', '90': 'Last 3 months', 'all': `All time (${fullSpanLabel})` };
+  let currentRange = 'all';
+  let currentAgg = null;
+  let currentWindow = null;
+  let currentTrend = null;
+
+  function applyFilter() {
+    const end = RAW.range.max_t;
+    let start;
+    if (currentRange === 'all') {
+      start = RAW.range.min_t;
+    } else if (currentRange === 'today') {
+      start = Math.floor(end / 86400) * 86400; // start of the most recent UTC day in the dataset
+    } else {
+      start = end - Number(currentRange) * 86400;
+    }
+    currentWindow = { start, end };
+    const filtered = RAW.loans.filter(x => x.t >= start && x.t <= end);
+    currentAgg = {
+      overall: computeOverall(filtered),
+      lenders: aggregateBy(filtered, 'l', 'b'),
+      borrowers: aggregateBy(filtered, 'b', 'l'),
+      pairs: aggregatePairs(filtered),
+    };
+    currentTrend = buildTrend(filtered, start, end);
+    renderAll();
+  }
+
+  document.getElementById('dateRangeSelect').addEventListener('change', ev => {
+    currentRange = ev.target.value;
+    applyFilter();
+  });
+
+  function renderRangeSummary() {
+    document.getElementById('subtitleText').textContent =
+      `Showing ${RANGE_LABELS[currentRange].toLowerCase()}: ${fmtDate(currentWindow.start)} – ${fmtDate(currentWindow.end)} · ${currentAgg.overall.total_loans.toLocaleString()} loans · ${currentAgg.overall.unique_lenders} lenders · ${currentAgg.overall.unique_borrowers} borrowers`;
+    document.getElementById('rangeSummary').textContent =
+      `${fmtDate(currentWindow.start)} – ${fmtDate(currentWindow.end)} · ${currentAgg.overall.total_loans.toLocaleString()} loans`;
+    document.getElementById('trendSub').textContent =
+      `Confirmed loans funded, all lenders combined — ${RANGE_LABELS[currentRange]}`;
+  }
+
+  function renderKpis() {
+    const o = currentAgg.overall;
+    const kpis = [
+      { label: 'Total loans funded', value: fmtNum(o.total_loans) },
+      { label: 'Total $ lent', value: fmtMoney(o.total_dollars) },
+      { label: 'Avg loan size', value: fmtMoney(o.avg_loan_size) },
+      { label: 'Avg fee / interest', value: fmtPct(o.avg_interest_pct) },
+      { label: 'Avg duration', value: fmtDays(o.avg_duration_days) + ' days' },
+      { label: 'Active lenders', value: fmtNum(o.unique_lenders) },
+      { label: 'Active borrowers', value: fmtNum(o.unique_borrowers) },
+    ];
+    const kpiRow = document.getElementById('kpiRow');
+    kpiRow.innerHTML = '';
+    kpis.forEach(k => {
+      const tile = document.createElement('div');
+      tile.className = 'stat-tile';
+      const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = k.label;
+      const val = document.createElement('div'); val.className = 'value'; val.textContent = k.value;
+      tile.appendChild(lab); tile.appendChild(val);
+      kpiRow.appendChild(tile);
+    });
+  }
+
+  function renderTrend() {
+    const el = document.getElementById('trendChart');
+    const W = el.clientWidth || 1120, H = 200, PAD = { l: 40, r: 16, t: 12, b: 28 };
+    const data = currentTrend;
+    const maxV = Math.max(1, ...data.map(d => d.loans));
+    const niceMax = Math.ceil(maxV / 100) * 100 || maxV + 1;
+    const x = i => PAD.l + (i / Math.max(1, data.length - 1)) * (W - PAD.l - PAD.r);
+    const y = v => H - PAD.b - (v / niceMax) * (H - PAD.t - PAD.b);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = Math.round(niceMax * i / ticks);
+      const gy = y(v);
+      const line = document.createElementNS(svg.namespaceURI, 'line');
+      line.setAttribute('x1', PAD.l); line.setAttribute('x2', W - PAD.r);
+      line.setAttribute('y1', gy); line.setAttribute('y2', gy);
+      line.setAttribute('class', 'gridline');
+      svg.appendChild(line);
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', PAD.l - 8); txt.setAttribute('y', gy + 3);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = v.toLocaleString();
+      svg.appendChild(txt);
+    }
+    const labelStride = Math.ceil(data.length / 12);
+    data.forEach((d, i) => {
+      if (i % labelStride !== 0 && i !== data.length - 1) return;
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', x(i)); txt.setAttribute('y', H - 8);
+      txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = d.label;
+      svg.appendChild(txt);
+    });
+
+    let areaPath = `M ${x(0)} ${y(0)} `;
+    data.forEach((d, i) => areaPath += `L ${x(i)} ${y(d.loans)} `);
+    areaPath += `L ${x(data.length - 1)} ${y(0)} Z`;
+    const area = document.createElementNS(svg.namespaceURI, 'path');
+    area.setAttribute('d', areaPath); area.setAttribute('class', 'trend-area');
+    svg.appendChild(area);
+
+    let linePath = '';
+    data.forEach((d, i) => { linePath += (i === 0 ? 'M' : 'L') + ` ${x(i)} ${y(d.loans)} `; });
+    const line = document.createElementNS(svg.namespaceURI, 'path');
+    line.setAttribute('d', linePath); line.setAttribute('class', 'trend-line');
+    svg.appendChild(line);
+
+    data.forEach((d, i) => {
+      const dot = document.createElementNS(svg.namespaceURI, 'circle');
+      dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(d.loans)); dot.setAttribute('r', 4);
+      dot.setAttribute('class', 'trend-dot');
+      svg.appendChild(dot);
+      const hit = document.createElementNS(svg.namespaceURI, 'circle');
+      hit.setAttribute('cx', x(i)); hit.setAttribute('cy', y(d.loans)); hit.setAttribute('r', 14);
+      hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
+      hit.addEventListener('pointermove', ev => {
+        showTooltip(ev.clientX, ev.clientY, d.label, [
+          ['Loans funded', d.loans.toLocaleString()],
+          ['Dollars lent', fmtMoney(d.dollars)],
+        ]);
+      });
+      hit.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(hit);
+    });
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+  }
+
+  function renderAll() {
+    renderKpis();
+    renderRangeSummary();
+    renderTrend();
+    lenderSection.render(currentAgg.lenders);
+    borrowerSection.render(currentAgg.borrowers);
+    pairsSection.render(currentAgg.pairs);
+  }
+
+  applyFilter();
+  window.addEventListener('resize', () => { renderTrend(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize(); });
+})();
+</script>
