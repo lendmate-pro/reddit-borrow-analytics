@@ -566,22 +566,8 @@
   }
   footer.notes b { color: var(--text-secondary); }
 
-  /* ---------- Periscope ---------- */
-  .periscope-ask-row { display: flex; gap: 8px; margin: 16px 0 12px; }
-  .periscope-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    background: var(--page-plane);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 11px 14px;
-    font-size: 14px;
-    color: var(--text-primary);
-    font-family: inherit;
-  }
-  .periscope-input:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  /* ---------- Crazy insights (under Insights) ---------- */
   .periscope-ask-btn {
-    flex-shrink: 0;
     background: var(--series-1);
     color: #fff;
     border: none;
@@ -595,54 +581,24 @@
   }
   .periscope-ask-btn:hover { filter: brightness(0.94); }
   .periscope-ask-btn:active { transform: scale(0.96); }
-  .periscope-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
-  .periscope-chip {
-    background: var(--page-plane);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 12px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-  }
-  .periscope-chip:hover { background: var(--series-1-wash); color: var(--text-primary); border-color: var(--series-1); }
-  .periscope-chip:active { transform: scale(0.96); }
 
   .periscope-reveal {
-    margin-top: 18px;
+    margin-top: 16px;
     background: var(--page-plane);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 18px 20px;
   }
   .periscope-reveal.show { animation: fadeSlideUp 0.35s ease both; }
-  .periscope-reveal-q { font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
   .periscope-reveal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
   .periscope-reveal-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
   .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 4px 0; }
 
-  .periscope-feed-heading { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 14px; }
-  .periscope-shuffle-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: var(--page-plane);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 13px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: filter 0.15s ease, transform 0.1s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-  .periscope-shuffle-btn:hover { color: var(--text-primary); border-color: var(--series-1); background: var(--series-1-wash); }
-  .periscope-shuffle-btn:active { transform: scale(0.96); }
   .periscope-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 12px;
+    margin-top: 16px;
   }
   .periscope-card {
     background: var(--surface-1);
@@ -673,7 +629,6 @@
     .detail-panel { padding: 14px 14px 16px 20px; }
     #refreshPageBtn .refresh-label { display: none; }
     #logoutBtn .logout-label { display: none; }
-    .periscope-ask-row { flex-direction: column; }
     .periscope-ask-btn { width: 100%; }
   }
 </style>
@@ -804,7 +759,6 @@
 
     <nav class="quick-nav" id="quickNav">
       <a href="#overview" data-page="overview">Overview</a>
-      <a href="#periscope" data-page="periscope">Periscope</a>
       <a href="#insights" data-page="insights">Insights</a>
       <a href="#lenders" data-page="lenders">Lenders</a>
       <a href="#borrowers" data-page="borrowers">Borrowers</a>
@@ -854,42 +808,16 @@
 
     </section>
 
-    <section class="page-section" data-page="periscope">
-    <div class="section-heading" id="section-periscope">Periscope</div>
-
-    <div class="card">
-      <h2 style="margin-bottom:2px;">Ask Periscope</h2>
-      <p class="card-sub">Point it at the data and ask anything — peak hours, what it'd take to lend like the top lender, current rates. It answers from what's actually in this window, live.</p>
-      <div class="periscope-ask-row">
-        <input type="text" id="periscopeAsk" class="periscope-input" placeholder="Ask Periscope anything… e.g. What are the peak hours for loans?" />
-        <button id="periscopeAskBtn" class="periscope-ask-btn" type="button">Reveal</button>
-      </div>
-      <div class="periscope-chip-row" id="periscopeChips">
-        <button class="periscope-chip" type="button">What are the peak hours for loans?</button>
-        <button class="periscope-chip" type="button">How do I do so many loans?</button>
-        <button class="periscope-chip" type="button">What money is required for it?</button>
-        <button class="periscope-chip" type="button">What's the average interest rate this time?</button>
-        <button class="periscope-chip" type="button">How do I achieve such a big number?</button>
-        <button class="periscope-chip" type="button">Give me a crazy insight</button>
-      </div>
-      <div class="periscope-reveal" id="periscopeReveal"></div>
-    </div>
-
-    <div class="card">
-      <div class="periscope-feed-heading">
-        <div>
-          <h2 style="margin-bottom:2px;">Insight feed</h2>
-          <p class="card-sub" style="margin:0;" id="periscopeFeedSub">Fresh angles on the same data, picked at random — this window only.</p>
-        </div>
-        <button class="periscope-shuffle-btn" id="periscopeShuffle" type="button"><span>🔀</span> Show me another</button>
-      </div>
-      <div class="periscope-grid" id="periscopeGrid"></div>
-    </div>
-
-    </section>
-
     <section class="page-section" data-page="insights">
     <div class="section-heading" id="section-insights">Insights</div>
+
+    <div class="card">
+      <h2 style="margin-bottom:2px;">Crazy insights</h2>
+      <p class="card-sub" id="periscopeFeedSub">Claude's daily read on the data, refreshed every morning.</p>
+      <button id="periscopeCrazyBtn" class="periscope-ask-btn" type="button">Give me a crazy insight</button>
+      <div class="periscope-reveal" id="periscopeReveal"></div>
+      <div class="periscope-grid" id="periscopeGrid"></div>
+    </div>
 
     <div class="card">
       <h2>When do loans get requested?</h2>
@@ -2059,17 +1987,13 @@
 
   // ---------- Periscope: ask-anything insight engine over the current date window ----------
   function initPeriscopeSection() {
-    const askEl = document.getElementById('periscopeAsk');
-    const askBtnEl = document.getElementById('periscopeAskBtn');
-    const chipsEl = document.getElementById('periscopeChips');
+    const crazyBtnEl = document.getElementById('periscopeCrazyBtn');
     const revealEl = document.getElementById('periscopeReveal');
     const gridEl = document.getElementById('periscopeGrid');
-    const shuffleBtnEl = document.getElementById('periscopeShuffle');
     const feedSubEl = document.getElementById('periscopeFeedSub');
 
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let loans = [];
-    let lastAsked = null;
     let claudeInsights = null;
 
     function relativeTime(iso) {
@@ -2241,30 +2165,15 @@
       return randomPoolAnswer();
     }
 
-    function routeAsk(text) {
-      const t = text.toLowerCase();
-      if (/hour|time of day|peak|busiest|when/.test(t)) return answerPeakHours() || randomPoolAnswer();
-      if (/capital|money|fund|afford|\bneed/.test(t)) return answerCapital() || answerBlueprint() || randomPoolAnswer();
-      if (/interest|rate|fee/.test(t)) return answerInterestRate() || randomPoolAnswer();
-      if (/big number|achieve|so many|how do i|scale|grow|blueprint/.test(t)) return answerBlueprint() || randomPoolAnswer();
-      return randomPoolAnswer();
-    }
-
-    function renderReveal(card, questionText) {
+    function renderReveal(card) {
       revealEl.innerHTML = '';
       revealEl.classList.remove('show');
       if (!card) {
         const empty = document.createElement('div');
         empty.className = 'periscope-empty';
-        empty.textContent = 'Not enough data in this window for that one yet — try widening the date range, or tap a suggestion below.';
+        empty.textContent = 'Not enough data in this window yet — check back after today\'s insights are published.';
         revealEl.appendChild(empty);
       } else {
-        if (questionText) {
-          const q = document.createElement('div');
-          q.className = 'periscope-reveal-q';
-          q.textContent = `"${questionText}"`;
-          revealEl.appendChild(q);
-        }
         const title = document.createElement('div'); title.className = 'periscope-reveal-title'; title.textContent = card.title;
         const body = document.createElement('div'); body.className = 'periscope-reveal-body'; body.textContent = card.body;
         revealEl.appendChild(title); revealEl.appendChild(body);
@@ -2278,16 +2187,9 @@
       if (claudeInsights && claudeInsights.insights.length) {
         shown = claudeInsights.insights;
         feedSubEl.textContent = `Claude's daily read on the data — generated ${relativeTime(claudeInsights.generated_at)}.`;
-        shuffleBtnEl.style.display = 'none';
       } else {
-        const pool = buildPool();
-        for (let i = pool.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-        shown = pool.slice(0, 6);
-        feedSubEl.textContent = 'Fresh angles on the same data, picked at random — this window only.';
-        shuffleBtnEl.style.display = '';
+        shown = buildPool();
+        feedSubEl.textContent = 'Claude\'s daily read on the data, refreshed every morning.';
       }
       gridEl.innerHTML = '';
       shown.forEach((c, i) => {
@@ -2301,25 +2203,15 @@
       });
     }
 
-    function ask(text) {
-      lastAsked = text;
-      askEl.value = text;
-      renderReveal(routeAsk(text), text);
-    }
-
-    askBtnEl.addEventListener('click', () => { const v = askEl.value.trim(); if (v) ask(v); });
-    askEl.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); const v = askEl.value.trim(); if (v) ask(v); } });
-    chipsEl.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => ask(btn.textContent)));
-    shuffleBtnEl.addEventListener('click', renderGrid);
+    crazyBtnEl.addEventListener('click', () => renderReveal(randomPoolAnswer()));
 
     function refresh() {
       renderGrid();
-      if (lastAsked) renderReveal(routeAsk(lastAsked), lastAsked);
-      else renderReveal(defaultReveal(), null);
+      renderReveal(defaultReveal());
     }
 
-    // Claude's hourly analysis, if published — fetched once client-side; falls back to the
-    // deterministic engine above (buildPool/routeAsk) if it's missing, stale to fetch, or errors.
+    // Claude's daily analysis, if published — fetched once client-side; falls back to the
+    // deterministic engine above (buildPool/randomPoolAnswer) if it's missing or the fetch errors.
     fetch('./periscope_insights.json', { cache: 'no-store' })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
