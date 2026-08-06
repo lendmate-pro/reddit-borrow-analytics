@@ -703,7 +703,7 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 13:06 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 13:16 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
@@ -972,8 +972,10 @@
       <h2>Every individual loan</h2>
       <p class="card-sub">The full transaction log — exact date and time each loan was funded (when the lender's confirmation was posted), not just first/last per relationship.</p>
       <div class="filter-row">
-        <input type="search" id="filter-loans-lender" placeholder="Filter by lender…" style="min-width:180px;" />
-        <input type="search" id="filter-loans-borrower" placeholder="Filter by borrower…" style="min-width:180px;" />
+        <input type="search" id="filter-loans-lender" list="filter-loans-lender-options" placeholder="Filter by lender…" style="min-width:180px;" autocomplete="off" />
+        <datalist id="filter-loans-lender-options"></datalist>
+        <input type="search" id="filter-loans-borrower" list="filter-loans-borrower-options" placeholder="Filter by borrower…" style="min-width:180px;" autocomplete="off" />
+        <datalist id="filter-loans-borrower-options"></datalist>
         <label class="hint" for="filter-loans-min">Amount</label>
         <input type="number" id="filter-loans-min" placeholder="Min $" class="range-select" style="width:90px; padding:7px 10px;" />
         <span class="hint">–</span>
@@ -1819,6 +1821,8 @@
     const minAmountEl = document.getElementById('filter-loans-min');
     const maxAmountEl = document.getElementById('filter-loans-max');
     const clearBtn = document.getElementById('filter-loans-clear');
+    const lenderOptionsEl = document.getElementById('filter-loans-lender-options');
+    const borrowerOptionsEl = document.getElementById('filter-loans-borrower-options');
     const countEl = document.getElementById('count-loans');
     const totalEl = document.getElementById('total-loans');
     const tbodyEl = document.getElementById('tbody-loans');
@@ -1922,8 +1926,15 @@
       });
     });
 
+    function renderNameOptions() {
+      const lenders = [...new Set(list.map(x => x.l))].sort((a, b) => a.localeCompare(b));
+      const borrowers = [...new Set(list.map(x => x.b))].sort((a, b) => a.localeCompare(b));
+      lenderOptionsEl.innerHTML = lenders.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+      borrowerOptionsEl.innerHTML = borrowers.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+    }
+
     return {
-      render(newList) { list = newList; currentPage = 1; renderTable(); },
+      render(newList) { list = newList; currentPage = 1; renderNameOptions(); renderTable(); },
     };
   }
   const loansTableSection = initLoansTableSection();
