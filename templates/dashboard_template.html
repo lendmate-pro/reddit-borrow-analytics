@@ -899,7 +899,7 @@
       <div class="periscope-feed-heading">
         <div>
           <h2 style="margin-bottom:2px;">Insight feed</h2>
-          <p class="card-sub" style="margin:0;">Fresh angles on the same data, picked at random — this window only.</p>
+          <p class="card-sub" style="margin:0;" id="periscopeFeedSub">Fresh angles on the same data, picked at random — this window only.</p>
         </div>
         <button class="periscope-shuffle-btn" id="periscopeShuffle" type="button"><span>🔀</span> Show me another</button>
       </div>
@@ -2085,10 +2085,20 @@
     const revealEl = document.getElementById('periscopeReveal');
     const gridEl = document.getElementById('periscopeGrid');
     const shuffleBtnEl = document.getElementById('periscopeShuffle');
+    const feedSubEl = document.getElementById('periscopeFeedSub');
 
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let loans = [];
     let lastAsked = null;
+    let claudeInsights = null;
+
+    function relativeTime(iso) {
+      const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+      if (diffMin < 1) return 'moments ago';
+      if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+      const diffHr = Math.round(diffMin / 60);
+      return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
+    }
 
     function windowDays() {
       return Math.max(1, (currentWindow.end - currentWindow.start) / 86400);
@@ -2236,9 +2246,19 @@
     }
 
     function randomPoolAnswer() {
+      if (claudeInsights && claudeInsights.insights.length) {
+        return claudeInsights.insights[Math.floor(Math.random() * claudeInsights.insights.length)];
+      }
       const pool = buildPool();
       if (!pool.length) return null;
       return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function defaultReveal() {
+      if (claudeInsights) {
+        return { emoji: '🔭', title: 'This hour, from Claude', body: claudeInsights.headline };
+      }
+      return randomPoolAnswer();
     }
 
     function routeAsk(text) {
@@ -2275,12 +2295,21 @@
     }
 
     function renderGrid() {
-      const pool = buildPool();
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
+      let shown;
+      if (claudeInsights && claudeInsights.insights.length) {
+        shown = claudeInsights.insights;
+        feedSubEl.textContent = `Claude's read on this hour's data — generated ${relativeTime(claudeInsights.generated_at)}.`;
+        shuffleBtnEl.style.display = 'none';
+      } else {
+        const pool = buildPool();
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        shown = pool.slice(0, 6);
+        feedSubEl.textContent = 'Fresh angles on the same data, picked at random — this window only.';
+        shuffleBtnEl.style.display = '';
       }
-      const shown = pool.slice(0, 6);
       gridEl.innerHTML = '';
       shown.forEach((c, i) => {
         const div = document.createElement('div');
@@ -2305,12 +2334,26 @@
     chipsEl.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => ask(btn.textContent)));
     shuffleBtnEl.addEventListener('click', renderGrid);
 
+    function refresh() {
+      renderGrid();
+      if (lastAsked) renderReveal(routeAsk(lastAsked), lastAsked);
+      else renderReveal(defaultReveal(), null);
+    }
+
+    // Claude's hourly analysis, if published — fetched once client-side; falls back to the
+    // deterministic engine above (buildPool/routeAsk) if it's missing, stale to fetch, or errors.
+    fetch('./periscope_insights.json', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data && Array.isArray(data.insights) && data.insights.length) claudeInsights = data;
+        if (currentAgg) refresh();
+      })
+      .catch(() => {});
+
     return {
       render(newList) {
         loans = newList;
-        renderGrid();
-        if (lastAsked) renderReveal(routeAsk(lastAsked), lastAsked);
-        else renderReveal(randomPoolAnswer(), null);
+        refresh();
       },
     };
   }
