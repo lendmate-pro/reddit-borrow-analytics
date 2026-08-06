@@ -263,6 +263,25 @@
   #refreshPageBtn.spinning .refresh-icon { animation: spin 0.7s linear infinite; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+  #logoutBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease, transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+  }
+  #logoutBtn:hover { background: var(--series-1-wash); color: var(--text-primary); }
+  #logoutBtn:active { transform: scale(0.96); }
+
   .kpi-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -559,6 +578,7 @@
     table.detail-table { font-size: 11.5px; }
     .detail-panel { padding: 14px 14px 16px 20px; }
     #refreshPageBtn .refresh-label { display: none; }
+    #logoutBtn .logout-label { display: none; }
   }
 </style>
 
@@ -629,6 +649,18 @@
       submitBtn.classList.toggle('loading', loading);
     }
 
+    window.borrowDashboardLogout = function () {
+      try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
+      rootEl.classList.add('locked');
+      gateEl.classList.remove('hidden');
+      formEl.reset();
+      errEl.textContent = '';
+      userEl.classList.remove('field-error');
+      passEl.classList.remove('field-error');
+      if (passEl.type === 'text') toggleBtn.click();
+      userEl.focus();
+    };
+
     try {
       if (sessionStorage.getItem(AUTH_KEY) === '1') unlock();
       else userEl.focus();
@@ -671,6 +703,7 @@
       <div class="dataset-badge" id="datasetBadge"></div>
       <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">__LAST_UPDATED__</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
+      <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
 
     <nav class="quick-nav" id="quickNav">
@@ -2559,6 +2592,11 @@
     const url = new URL(window.location.href);
     url.searchParams.set('_r', Date.now().toString());
     setTimeout(() => { window.location.href = url.toString(); }, 350);
+  });
+
+  // ---------- Logout button: clear the session gate and show the login form again ----------
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.borrowDashboardLogout();
   });
 })();
 </script>
