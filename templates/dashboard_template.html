@@ -1452,7 +1452,8 @@
       const fmtMetric = barMetric === 'total_amount' ? fmtMoney : fmtNum;
       const sorted = list.slice().sort((a, b) => b[barMetric] - a[barMetric]).slice(0, topN);
       if (!sorted.length) { barEl.innerHTML = ''; return; }
-      const W = barEl.clientWidth || 1120;
+      if (!barEl.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+      const W = barEl.clientWidth;
       const rowH = 30, labelW = W < 480 ? 96 : W < 700 ? 140 : 190, PAD = { t: 4, r: 60, b: 4 };
       const H = sorted.length * rowH + PAD.t + PAD.b;
       const maxV = Math.max(1, sorted[0][barMetric] || 0);
@@ -1722,7 +1723,8 @@
     function renderBars() {
       const sorted = list.slice(0, topN);
       if (!sorted.length) { barEl.innerHTML = ''; return; }
-      const W = barEl.clientWidth || 1120;
+      if (!barEl.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+      const W = barEl.clientWidth;
       const rowH = 30, labelW = W < 480 ? 120 : W < 700 ? 180 : 260, PAD = { t: 4, r: 60, b: 4 };
       const H = sorted.length * rowH + PAD.t + PAD.b;
       const maxV = sorted[0].count;
@@ -2513,7 +2515,8 @@
     const el = document.getElementById('trendChart');
     const data = currentTrend;
     const projectedVal = showProjection ? computeProjection(data) : null;
-    const W = el.clientWidth || 1120, H = 200, PAD = { l: 40, r: projectedVal != null ? 34 : 16, t: 12, b: 28 };
+    if (!el.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+    const W = el.clientWidth, H = 200, PAD = { l: 40, r: projectedVal != null ? 34 : 16, t: 12, b: 28 };
     const plotCount = data.length + (projectedVal != null ? 1 : 0);
     const maxV = Math.max(1, ...data.map(d => d.loans), projectedVal || 0);
     const niceMax = Math.ceil(maxV / 100) * 100 || maxV + 1;
@@ -2656,7 +2659,8 @@
     const max = Math.max(1, ...grid.flat());
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    const W = el.clientWidth || 1120;
+    if (!el.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+    const W = el.clientWidth;
     const labelW = 40, PAD = { t: 4, r: 4, b: 22 };
     const cellW = (W - labelW - PAD.r) / 24;
     const cellH = 24;
@@ -2712,7 +2716,8 @@
     const counts = Array(31).fill(0);
     loans.forEach(x => { counts[istDate(x.t).getUTCDate() - 1] += 1; });
 
-    const W = el.clientWidth || 1120, H = 200, PAD = { l: 36, r: 12, t: 10, b: 24 };
+    if (!el.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+    const W = el.clientWidth, H = 200, PAD = { l: 36, r: 12, t: 10, b: 24 };
     const max = Math.max(1, ...counts);
     const niceMax = Math.ceil(max / 5) * 5 || max + 1;
     const slotW = (W - PAD.l - PAD.r) / 31;
@@ -2798,7 +2803,8 @@
     });
     const max = Math.max(1, ...grid.flat());
 
-    const W = el.clientWidth || 1120;
+    if (!el.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+    const W = el.clientWidth;
     const labelW = 104, PAD = { t: 4, r: 4, b: 30 };
     const cellW = (W - labelW - PAD.r) / FEE_BUCKETS.length;
     const cellH = 34;
@@ -2881,6 +2887,22 @@
 
   applyFilter();
   window.addEventListener('resize', redrawAllCharts);
+
+  // window 'resize' only fires for the browser window itself — it misses container-width
+  // changes from other causes (a web font finishing load and reflowing text, or this page
+  // sitting inside a resizable iframe/embed), any of which leaves charts rendered at a
+  // stale width. A ResizeObserver on the actual content column catches all of those too.
+  if (typeof ResizeObserver !== 'undefined') {
+    let resizeRaf = null;
+    const ro = new ResizeObserver(() => {
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(redrawAllCharts);
+    });
+    ro.observe(document.querySelector('.wrap'));
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(redrawAllCharts).catch(() => {});
+  }
 
   // ---------- Name links: click any username anywhere to open their profile ----------
   function makeNameLink(name) {
