@@ -568,6 +568,9 @@
 
   /* ---------- Crazy insights (under Insights) ---------- */
   .periscope-ask-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     background: var(--series-1);
     color: #fff;
     border: none;
@@ -577,10 +580,21 @@
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
-    transition: filter 0.15s ease, transform 0.1s ease;
+    transition: filter 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
   }
   .periscope-ask-btn:hover { filter: brightness(0.94); }
   .periscope-ask-btn:active { transform: scale(0.96); }
+  .periscope-ask-btn:disabled { opacity: 0.75; cursor: default; }
+  .periscope-btn-spinner {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    display: none;
+    animation: spin 0.7s linear infinite;
+  }
+  .periscope-ask-btn.loading .periscope-btn-spinner { display: inline-block; }
 
   .periscope-reveal {
     margin-top: 16px;
@@ -593,6 +607,21 @@
   .periscope-reveal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
   .periscope-reveal-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
   .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 4px 0; }
+
+  .periscope-reveal-loading { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+  .periscope-reveal-loading-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--series-1);
+    animation: periscopePulse 1s ease-in-out infinite;
+  }
+  .periscope-reveal-loading-dot:nth-child(2) { animation-delay: 0.15s; }
+  .periscope-reveal-loading-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes periscopePulse {
+    0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  .periscope-reveal-loading-text { font-size: 13px; color: var(--text-muted); }
 
   .periscope-grid {
     display: grid;
@@ -814,7 +843,10 @@
     <div class="card">
       <h2 style="margin-bottom:2px;">Crazy insights</h2>
       <p class="card-sub" id="periscopeFeedSub">Claude's daily read on the data, refreshed every morning.</p>
-      <button id="periscopeCrazyBtn" class="periscope-ask-btn" type="button">Give me a crazy insight</button>
+      <button id="periscopeCrazyBtn" class="periscope-ask-btn" type="button">
+        <span class="periscope-btn-spinner" aria-hidden="true"></span>
+        <span class="periscope-btn-label">Give me insight</span>
+      </button>
       <div class="periscope-reveal" id="periscopeReveal"></div>
       <div class="periscope-grid" id="periscopeGrid"></div>
     </div>
@@ -2165,6 +2197,21 @@
       return randomPoolAnswer();
     }
 
+    function renderRevealLoading() {
+      revealEl.innerHTML = '';
+      revealEl.classList.remove('show');
+      const loading = document.createElement('div');
+      loading.className = 'periscope-reveal-loading';
+      loading.innerHTML =
+        '<span class="periscope-reveal-loading-dot"></span>' +
+        '<span class="periscope-reveal-loading-dot"></span>' +
+        '<span class="periscope-reveal-loading-dot"></span>' +
+        '<span class="periscope-reveal-loading-text">Digging through today\'s data…</span>';
+      revealEl.appendChild(loading);
+      void revealEl.offsetWidth;
+      revealEl.classList.add('show');
+    }
+
     function renderReveal(card) {
       revealEl.innerHTML = '';
       revealEl.classList.remove('show');
@@ -2203,7 +2250,16 @@
       });
     }
 
-    crazyBtnEl.addEventListener('click', () => renderReveal(randomPoolAnswer()));
+    crazyBtnEl.addEventListener('click', () => {
+      crazyBtnEl.disabled = true;
+      crazyBtnEl.classList.add('loading');
+      renderRevealLoading();
+      setTimeout(() => {
+        renderReveal(randomPoolAnswer());
+        crazyBtnEl.disabled = false;
+        crazyBtnEl.classList.remove('loading');
+      }, 550 + Math.random() * 250);
+    });
 
     function refresh() {
       renderGrid();
