@@ -623,25 +623,6 @@
   }
   .periscope-reveal-loading-text { font-size: 13px; color: var(--text-muted); }
 
-  .periscope-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-    margin-top: 16px;
-  }
-  .periscope-card {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--series-1);
-    border-radius: 10px;
-    padding: 14px 16px 16px;
-    animation: fadeSlideUp 0.4s ease both;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-  }
-  .periscope-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
-  .periscope-card-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
-  .periscope-card-body { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
-
   @media (max-width: 860px) {
     table.rank-table { font-size: 12px; }
   }
@@ -848,7 +829,6 @@
         <span class="periscope-btn-label">Give me insight</span>
       </button>
       <div class="periscope-reveal" id="periscopeReveal"></div>
-      <div class="periscope-grid" id="periscopeGrid"></div>
     </div>
 
     <div class="card">
@@ -2021,7 +2001,6 @@
   function initPeriscopeSection() {
     const crazyBtnEl = document.getElementById('periscopeCrazyBtn');
     const revealEl = document.getElementById('periscopeReveal');
-    const gridEl = document.getElementById('periscopeGrid');
     const feedSubEl = document.getElementById('periscopeFeedSub');
 
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -2229,25 +2208,10 @@
       revealEl.classList.add('show');
     }
 
-    function renderGrid() {
-      let shown;
-      if (claudeInsights && claudeInsights.insights.length) {
-        shown = claudeInsights.insights;
-        feedSubEl.textContent = `Claude's daily read on the data — generated ${relativeTime(claudeInsights.generated_at)}.`;
-      } else {
-        shown = buildPool();
-        feedSubEl.textContent = 'Claude\'s daily read on the data, refreshed every morning.';
-      }
-      gridEl.innerHTML = '';
-      shown.forEach((c, i) => {
-        const div = document.createElement('div');
-        div.className = 'periscope-card';
-        div.style.animationDelay = (i * 45) + 'ms';
-        const title = document.createElement('div'); title.className = 'periscope-card-title'; title.textContent = c.title;
-        const body = document.createElement('div'); body.className = 'periscope-card-body'; body.textContent = c.body;
-        div.appendChild(title); div.appendChild(body);
-        gridEl.appendChild(div);
-      });
+    function updateFeedSub() {
+      feedSubEl.textContent = claudeInsights && claudeInsights.insights.length
+        ? `Claude's daily read on the data — generated ${relativeTime(claudeInsights.generated_at)}.`
+        : 'Claude\'s daily read on the data, refreshed every morning.';
     }
 
     crazyBtnEl.addEventListener('click', () => {
@@ -2262,7 +2226,7 @@
     });
 
     function refresh() {
-      renderGrid();
+      updateFeedSub();
       renderReveal(defaultReveal());
     }
 
