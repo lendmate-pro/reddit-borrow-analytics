@@ -1399,6 +1399,15 @@
     tooltip.classList.add('show');
   }
   function hideTooltip() { tooltip.classList.remove('show'); }
+  // A hover tooltip only knows to hide via pointerleave/pointermove on its trigger element — but
+  // clicking a bar (e.g. selectByName below) can scroll the page with that element still under an
+  // otherwise-stationary cursor, and browsers don't fire pointerleave just because the page scrolled
+  // out from under a pointer that didn't itself move. Same gap on touch, which has no hover/leave
+  // concept at all. These catch-alls make sure a stuck tooltip can never survive the next scroll,
+  // click, or page/section switch, regardless of which specific trigger caused it.
+  window.addEventListener('scroll', hideTooltip, { passive: true, capture: true });
+  document.addEventListener('click', hideTooltip, true);
+  window.addEventListener('hashchange', hideTooltip);
 
   // ---------- Shared pagination control ----------
   function renderPaginationControl(containerEl, total, pageSize, page, onPageChange) {
