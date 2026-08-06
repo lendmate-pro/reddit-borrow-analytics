@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <title>r/borrow LIVE Analytics</title>
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <link rel="icon" type="image/png" href="https://lendmate.pro/images/logo.png">
 <link rel="apple-touch-icon" href="https://lendmate.pro/images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,44 +24,6 @@
     --seq-100: #dfeae3; --seq-200: #b9d6c6; --seq-300: #8fbfa9;
     --seq-400: #5c9986; --seq-450: #3d7a67; --seq-500: #2a6152; --seq-600: #1e4d40;
     --good: #2e7d4f;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) .viz-root {
-      color-scheme: dark;
-      --surface-1:      #1b221d;
-      --page-plane:     #0f1512;
-      --text-primary:   #f4f2ea;
-      --text-secondary: #b9c2ba;
-      --text-muted:     #838f87;
-      --gridline:       #263029;
-      --baseline:       #384039;
-      --border:         rgba(255,255,255,0.10);
-      --series-1:       #4ea085;
-      --series-1-wash:  rgba(78,160,133,0.14);
-      --series-2:       #d98457;
-      --series-2-wash:  rgba(217,132,87,0.14);
-      --seq-100: #1e4d40; --seq-200: #276150; --seq-300: #327763;
-      --seq-400: #3d8a73; --seq-450: #4ea085; --seq-500: #74b89f; --seq-600: #a3d3bf;
-      --good: #3fbe74;
-    }
-  }
-  :root[data-theme="dark"] .viz-root {
-    color-scheme: dark;
-    --surface-1:      #1b221d;
-    --page-plane:     #0f1512;
-    --text-primary:   #f4f2ea;
-    --text-secondary: #b9c2ba;
-    --text-muted:     #838f87;
-    --gridline:       #263029;
-    --baseline:       #384039;
-    --border:         rgba(255,255,255,0.10);
-    --series-1:       #4ea085;
-    --series-1-wash:  rgba(78,160,133,0.14);
-    --series-2:       #d98457;
-    --series-2-wash:  rgba(217,132,87,0.14);
-    --seq-100: #1e4d40; --seq-200: #276150; --seq-300: #327763;
-    --seq-400: #3d8a73; --seq-450: #4ea085; --seq-500: #74b89f; --seq-600: #a3d3bf;
-    --good: #3fbe74;
   }
 
   * { box-sizing: border-box; }
@@ -136,10 +98,6 @@
     gap: 4px;
     box-shadow: 0 12px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
   }
-  @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) .login-card { box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25); }
-  }
-  :root[data-theme="dark"] .login-card { box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25); }
   .login-logo {
     width: 44px;
     height: 44px;
