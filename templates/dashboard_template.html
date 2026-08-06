@@ -35,48 +35,26 @@
     * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   }
 
-  .app-shell {
-    display: flex;
-    align-items: flex-start;
-  }
-  .app-sidebar {
-    width: 224px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    padding: 22px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 4px 10px 22px;
-  }
-  .sidebar-logo { width: 28px; height: 28px; border-radius: 7px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: var(--text-primary); }
-
   .quick-nav {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    gap: 22px;
+    border-bottom: 1px solid var(--gridline);
+    padding: 0 2px;
+    margin-bottom: 20px;
+    overflow-x: auto;
   }
   .quick-nav a {
     font-size: 13.5px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     text-decoration: none;
-    padding: 10px 12px;
-    border-radius: 9px;
+    padding: 12px 1px;
     white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
-  .quick-nav a:hover { background: rgba(23,23,15,0.05); color: var(--text-primary); }
-  .quick-nav a.active { background: var(--surface-1); color: var(--text-primary); font-weight: 700; }
+  .quick-nav a:hover { color: var(--text-primary); }
+  .quick-nav a.active { color: var(--text-primary); border-bottom-color: var(--series-1); font-weight: 700; }
 
   .page-section { display: none; }
   .page-section.active { display: block; }
@@ -86,16 +64,15 @@
     font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
+    padding: 20px;
   }
   .main-panel {
-    flex: 1 1 auto;
-    min-width: 0;
     background: var(--panel);
     border-radius: 24px;
-    margin: 14px 14px 14px 0;
+    min-height: calc(100vh - 40px);
   }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 28px 60px; }
-  .viz-root.locked .app-shell { display: none; }
+  .viz-root.locked .main-panel { display: none; }
 
   #loginGate {
     position: fixed;
@@ -212,7 +189,8 @@
   header.page-header { margin-bottom: 18px; }
   h1 { font-size: 25px; font-weight: 800; letter-spacing: -0.015em; margin: 0; }
   .header-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 10px; }
+  .header-logo { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; object-fit: contain; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 10px; overflow-wrap: break-word; }
   .dataset-badge {
     display: inline-flex;
     align-items: center;
@@ -637,30 +615,15 @@
 
   @media (max-width: 860px) {
     table.rank-table { font-size: 12px; }
-    .app-shell { flex-direction: column; }
-    .app-sidebar {
-      width: 100%;
-      height: auto;
-      flex-direction: row;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 500;
-      background: var(--page-plane);
-      border-bottom: 1px solid var(--gridline);
-      padding: 8px 12px;
-      overflow-x: auto;
-    }
-    .sidebar-brand { padding: 4px 12px 4px 4px; flex-shrink: 0; }
-    .quick-nav { flex-direction: row; gap: 2px; }
-    .quick-nav a { padding: 8px 12px; }
-    .main-panel { margin: 0; border-radius: 0; }
-    .wrap { padding: 20px 16px 40px; }
   }
 
   @media (max-width: 640px) {
+    .viz-root { padding: 0; }
+    .main-panel { border-radius: 0; min-height: 100vh; }
+    .wrap { padding: 16px 12px 40px; }
     .card { padding: 14px 14px; }
     h1 { font-size: 19px; }
+    .header-logo { width: 30px; height: 30px; }
     .stat-tile .value { font-size: 17px; }
     .filter-row { gap: 8px; }
     .filter-row input[type="search"] { min-width: 0; flex: 1 1 160px; }
@@ -783,26 +746,11 @@
     });
   })();
   </script>
-  <div class="app-shell">
-    <nav class="app-sidebar" id="appSidebar">
-      <div class="sidebar-brand">
-        <img src="https://lendmate.pro/images/logo.png" alt="Lendmate" class="sidebar-logo" width="30" height="30" loading="eager" />
-        <span class="sidebar-brand-name">Lendmate</span>
-      </div>
-      <div class="quick-nav" id="quickNav">
-        <a href="#overview" data-page="overview">Overview</a>
-        <a href="#insights" data-page="insights">Insights</a>
-        <a href="#lenders" data-page="lenders">Lenders</a>
-        <a href="#borrowers" data-page="borrowers">Borrowers</a>
-        <a href="#pairs" data-page="pairs">Pairs</a>
-        <a href="#loans" data-page="loans">Loans</a>
-        <a href="#defaults" data-page="defaults">Defaults</a>
-      </div>
-    </nav>
-    <div class="main-panel">
+  <div class="main-panel">
     <div class="wrap">
     <header class="page-header" id="top">
       <div class="header-title-row">
+        <img src="https://lendmate.pro/images/logo.png" alt="Lendmate" class="header-logo" width="36" height="36" loading="eager" />
         <h1>Lender &amp; Borrower Analytics</h1>
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
@@ -811,6 +759,16 @@
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
+
+    <nav class="quick-nav" id="quickNav">
+      <a href="#overview" data-page="overview">Overview</a>
+      <a href="#insights" data-page="insights">Insights</a>
+      <a href="#lenders" data-page="lenders">Lenders</a>
+      <a href="#borrowers" data-page="borrowers">Borrowers</a>
+      <a href="#pairs" data-page="pairs">Pairs</a>
+      <a href="#loans" data-page="loans">Loans</a>
+      <a href="#defaults" data-page="defaults">Defaults</a>
+    </nav>
 
     <div class="card date-filter-card">
       <div class="filter-row" style="margin-bottom:0;">
@@ -1168,7 +1126,6 @@
       <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Fee/interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
     </footer>
     </div>
-    </div>
   </div>
 </div>
 
@@ -1513,7 +1470,8 @@
         nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
         nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
         nameTxt.setAttribute('class', 'bar-label-name');
-        nameTxt.textContent = `${i + 1}. ${truncateLabel(d.name, Math.max(6, Math.floor(labelW / 7)))}`;
+        const rankPrefix = `${i + 1}. `;
+        nameTxt.textContent = `${rankPrefix}${truncateLabel(d.name, Math.max(6, Math.floor(labelW / 7) - rankPrefix.length))}`;
         svg.appendChild(nameTxt);
 
         const rect = document.createElementNS(svg.namespaceURI, 'rect');
@@ -1782,8 +1740,11 @@
         nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
         nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
         nameTxt.setAttribute('class', 'bar-label-name');
-        const pairChars = Math.max(8, Math.floor(labelW / 7));
-        nameTxt.textContent = `${i + 1}. ${truncateLabel(d.lender, Math.floor(pairChars / 2))} → ${truncateLabel(d.borrower, Math.floor(pairChars / 2))}`;
+        const rankPrefix = `${i + 1}. `;
+        const sepStr = ' → ';
+        const pairChars = Math.max(8, Math.floor(labelW / 7) - rankPrefix.length - sepStr.length);
+        const perNameChars = Math.max(3, Math.floor(pairChars / 2));
+        nameTxt.textContent = `${rankPrefix}${truncateLabel(d.lender, perNameChars)}${sepStr}${truncateLabel(d.borrower, perNameChars)}`;
         svg.appendChild(nameTxt);
 
         const rect = document.createElementNS(svg.namespaceURI, 'rect');
