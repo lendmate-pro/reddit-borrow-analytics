@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: hourly-refresh
@@ -39,3 +40,11 @@ jobs:
             git commit -m "Hourly update: $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      - name: Trigger Pages deploy
+        # A push authenticated with the default GITHUB_TOKEN does not trigger other
+        # workflows (GitHub's anti-recursion rule), so pages-deploy.yml's own `on: push`
+        # never fires for the commit above — dispatch it explicitly instead.
+        run: gh workflow run pages-deploy.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
