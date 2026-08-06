@@ -518,6 +518,35 @@
     background: var(--series-1-wash); color: var(--series-1); margin-left: 6px; font-weight: 600;
   }
 
+  .name-link { color: inherit; text-decoration: none; }
+  .name-link:hover { color: var(--series-1); text-decoration: underline; }
+
+  /* ---------- Profile (drill-down, reached by clicking a username; not in the tab nav) ---------- */
+  .profile-back-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .profile-back-btn:hover { color: var(--series-1); }
+  .profile-header-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
+  .profile-header-row h2 { margin: 0; font-size: 19px; }
+  .profile-sub { font-size: 12.5px; color: var(--text-muted); }
+  .profile-role-badge {
+    display: inline-flex; align-items: center; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px;
+    background: var(--series-1-wash); color: var(--series-1);
+  }
+  .profile-role-badge.warn { background: rgba(208,59,59,0.12); color: #d03b3b; }
+  .profile-empty { padding: 6px 0; color: var(--text-muted); font-size: 13.5px; }
+
   .top-n-toggle { display: flex; gap: 4px; }
   .top-n-toggle button {
     background: var(--page-plane);
@@ -1123,6 +1152,11 @@
 
     </section>
 
+    <section class="page-section" data-page="profile">
+    <button class="profile-back-btn" id="profileBackBtn" type="button">&larr; Back</button>
+    <div id="profileContent"></div>
+    </section>
+
     <footer class="notes">
       <p><b>Source:</b> r/borrow's own LoansBot confirmation ledger (loan-creation and repayment comments), cross-referenced with each request post's stated terms. Pulled via a public Reddit archive, not Reddit's live API.</p>
       <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Fee/interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
@@ -1529,7 +1563,7 @@
       rec.top_others.forEach(o => {
         const tr = document.createElement('tr');
         const nameTd = document.createElement('td'); nameTd.className = 'name-cell';
-        nameTd.textContent = o.name;
+        nameTd.appendChild(makeNameLink(o.name));
         if (o.count > 1) {
           const chip = document.createElement('span'); chip.className = 'repeat-chip';
           chip.textContent = `${o.count}×`;
@@ -1579,7 +1613,7 @@
         const nameTd = document.createElement('td'); nameTd.className = 'name-cell';
         const rankSpan = document.createElement('span'); rankSpan.className = 'rank-num'; rankSpan.textContent = (rankOffset + idx + 1) + '.';
         nameTd.appendChild(rankSpan);
-        nameTd.appendChild(document.createTextNode(r.name));
+        nameTd.appendChild(makeNameLink(r.name));
         tr.appendChild(nameTd);
 
         [fmtNum(r.num_loans), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtPct(r.avg_interest_pct),
@@ -1796,11 +1830,11 @@
         const lenderTd = document.createElement('td'); lenderTd.className = 'name-cell';
         const rankSpan = document.createElement('span'); rankSpan.className = 'rank-num'; rankSpan.textContent = (rankOffset + idx + 1) + '.';
         lenderTd.appendChild(rankSpan);
-        lenderTd.appendChild(document.createTextNode(r.lender));
+        lenderTd.appendChild(makeNameLink(r.lender));
         tr.appendChild(lenderTd);
 
         const borrowerTd = document.createElement('td'); borrowerTd.className = 'name-cell';
-        borrowerTd.textContent = r.borrower;
+        borrowerTd.appendChild(makeNameLink(r.borrower));
         tr.appendChild(borrowerTd);
 
         [fmtNum(r.count), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtDate(r.first_t), fmtDate(r.last_t), `${r.repaid_count}/${r.count}`]
@@ -1928,9 +1962,9 @@
         tr.style.cursor = 'default';
         const dtTd = document.createElement('td'); dtTd.textContent = fmtDateTime(x.t);
         tr.appendChild(dtTd);
-        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.textContent = x.l;
+        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.appendChild(makeNameLink(x.l));
         tr.appendChild(lTd);
-        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.textContent = x.b;
+        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b));
         tr.appendChild(bTd);
         [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
@@ -2308,9 +2342,9 @@
       pageRows.forEach(x => {
         const tr = document.createElement('tr');
         tr.style.cursor = 'default';
-        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.textContent = x.l;
+        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.appendChild(makeNameLink(x.l));
         tr.appendChild(lTd);
-        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.textContent = x.b;
+        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b));
         tr.appendChild(bTd);
         const amountTd = document.createElement('td');
         amountTd.textContent = fmtMoney(x.p) + (x.c && x.c !== 'USD' ? ` ${x.c}` : '');
@@ -2879,6 +2913,261 @@
   applyFilter();
   window.addEventListener('resize', redrawAllCharts);
 
+  // ---------- Name links: click any username anywhere to open their profile ----------
+  function makeNameLink(name) {
+    const a = document.createElement('a');
+    a.href = '#profile/' + encodeURIComponent(name);
+    a.className = 'name-link';
+    a.textContent = name;
+    a.addEventListener('click', ev => ev.stopPropagation());
+    return a;
+  }
+
+  // ---------- Profile: a person's combined lender + borrower history, all-time ----------
+  function computeProfile(username) {
+    const key = username.toLowerCase();
+    const asLender = RAW.loans.filter(x => x.l.toLowerCase() === key);
+    const asBorrower = RAW.loans.filter(x => x.b.toLowerCase() === key);
+    const displayName = (asLender[0] && asLender[0].l) || (asBorrower[0] && asBorrower[0].b) || username;
+
+    const lenderSummary = asLender.length ? summarizeGroup(displayName, asLender, 'b') : null;
+    const borrowerSummary = asBorrower.length ? summarizeGroup(displayName, asBorrower, 'l') : null;
+
+    const allActivity = [
+      ...asLender.map(x => ({ x, role: 'Lent', counterpart: x.b })),
+      ...asBorrower.map(x => ({ x, role: 'Borrowed', counterpart: x.l })),
+    ].sort((a, b) => b.x.t - a.x.t);
+
+    const uniqueCounterparts = new Set([
+      ...asLender.map(x => x.b.toLowerCase()),
+      ...asBorrower.map(x => x.l.toLowerCase()),
+    ]).size;
+
+    const allT = allActivity.map(a => a.x.t);
+    const firstT = allT.length ? Math.min(...allT) : null;
+    const lastT = allT.length ? Math.max(...allT) : null;
+
+    const unpaidMentions = RAW.unpaid.filter(x => x.l.toLowerCase() === key || x.b.toLowerCase() === key);
+
+    return {
+      displayName, key, asLender, asBorrower, lenderSummary, borrowerSummary, allActivity,
+      uniqueCounterparts, firstT, lastT, unpaidMentions,
+      outstanding: (outstandingByLender.get(key) || 0) + (outstandingByBorrower.get(key) || 0),
+      activeCount: (activeCountByLender.get(key) || 0) + (activeCountByBorrower.get(key) || 0),
+      overdueCount: (overdueByLender.count.get(key) || 0) + (overdueByBorrower.count.get(key) || 0),
+    };
+  }
+
+  function buildCounterpartTable(title, sub, others, otherLabel) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const h2 = document.createElement('h2'); h2.textContent = title; h2.style.marginBottom = '2px';
+    card.appendChild(h2);
+    const subEl = document.createElement('p'); subEl.className = 'card-sub'; subEl.textContent = sub;
+    card.appendChild(subEl);
+
+    const scroll = document.createElement('div'); scroll.className = 'table-scroll';
+    const table = document.createElement('table'); table.className = 'detail-table';
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    [otherLabel, 'Loans together', 'Total $', 'Avg $', 'First loan', 'Last loan', 'Repaid'].forEach(label => {
+      const th = document.createElement('th'); th.textContent = label; htr.appendChild(th);
+    });
+    thead.appendChild(htr); table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    others.forEach(o => {
+      const tr = document.createElement('tr');
+      const nameTd = document.createElement('td'); nameTd.className = 'name-cell';
+      nameTd.appendChild(makeNameLink(o.name));
+      if (o.count > 1) {
+        const chip = document.createElement('span'); chip.className = 'repeat-chip'; chip.textContent = `${o.count}×`;
+        nameTd.appendChild(chip);
+      }
+      tr.appendChild(nameTd);
+      [fmtNum(o.count), fmtMoney(o.total), fmtMoney(o.avg), fmtDate(o.first_t), fmtDate(o.last_t), `${o.repaid_count}/${o.count}`]
+        .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    scroll.appendChild(table);
+    card.appendChild(scroll);
+    return card;
+  }
+
+  function initProfileActivityTable(containerEl, activity) {
+    let pageSize = 50, currentPage = 1;
+    const fmtDateTime = t => {
+      if (t == null) return '—';
+      return new Date(t * 1000).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+      }) + ' IST';
+    };
+
+    const card = document.createElement('div'); card.className = 'card';
+    const h2 = document.createElement('h2'); h2.textContent = 'All activity'; h2.style.marginBottom = '2px';
+    card.appendChild(h2);
+    const sub = document.createElement('p'); sub.className = 'card-sub';
+    sub.textContent = `Every loan involving this person, either side — ${activity.length.toLocaleString()} total, all-time.`;
+    card.appendChild(sub);
+
+    const filterRow = document.createElement('div'); filterRow.className = 'filter-row';
+    const label = document.createElement('label'); label.className = 'hint'; label.textContent = 'Rows per page';
+    const select = document.createElement('select'); select.className = 'range-select';
+    [['50', '50'], ['100', '100'], ['200', '200'], ['all', 'All']].forEach(([v, l]) => {
+      const opt = document.createElement('option'); opt.value = v; opt.textContent = l; if (v === '50') opt.selected = true;
+      select.appendChild(opt);
+    });
+    filterRow.appendChild(label); filterRow.appendChild(select);
+    card.appendChild(filterRow);
+
+    const scroll = document.createElement('div'); scroll.className = 'table-scroll';
+    const table = document.createElement('table'); table.className = 'rank-table';
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    ['Date & time', 'Role', 'Counterparty', 'Amount', 'Fee %', 'Duration', 'Repaid', 'Post'].forEach((label, i) => {
+      const th = document.createElement('th'); th.textContent = label;
+      if (i === 2) th.style.textAlign = 'left';
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr); table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+    scroll.appendChild(table);
+    card.appendChild(scroll);
+    const paginationEl = document.createElement('div'); paginationEl.className = 'pagination-row';
+    card.appendChild(paginationEl);
+
+    function render() {
+      tbody.innerHTML = '';
+      const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(activity.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const pageRows = pageSize === Infinity ? activity : activity.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+      pageRows.forEach(a => {
+        const x = a.x;
+        const tr = document.createElement('tr'); tr.style.cursor = 'default';
+        const dtTd = document.createElement('td'); dtTd.textContent = fmtDateTime(x.t); tr.appendChild(dtTd);
+        const roleTd = document.createElement('td'); roleTd.textContent = a.role; tr.appendChild(roleTd);
+        const cpTd = document.createElement('td'); cpTd.className = 'name-cell'; cpTd.appendChild(makeNameLink(a.counterpart)); tr.appendChild(cpTd);
+        [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
+          .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        const postTd = document.createElement('td');
+        if (x.u) {
+          const link = document.createElement('a');
+          link.href = 'https://www.reddit.com/r/borrow/comments/' + x.u + '/';
+          link.target = '_blank'; link.rel = 'noopener noreferrer';
+          link.textContent = 'View post ↗'; link.style.color = 'var(--series-1)';
+          postTd.appendChild(link);
+        } else { postTd.textContent = '—'; }
+        tr.appendChild(postTd);
+        tbody.appendChild(tr);
+      });
+      renderPaginationControl(paginationEl, activity.length, pageSize, currentPage, newPage => { currentPage = newPage; render(); });
+    }
+    select.addEventListener('change', ev => { pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value; currentPage = 1; render(); });
+    render();
+    containerEl.appendChild(card);
+  }
+
+  function renderProfile(username) {
+    const contentEl = document.getElementById('profileContent');
+    contentEl.innerHTML = '';
+    if (!username) {
+      const empty = document.createElement('p'); empty.className = 'profile-empty'; empty.textContent = 'No profile selected.';
+      contentEl.appendChild(empty);
+      return;
+    }
+    const p = computeProfile(username);
+    if (!p.asLender.length && !p.asBorrower.length) {
+      const card = document.createElement('div'); card.className = 'card';
+      const h2 = document.createElement('h2'); h2.textContent = username; card.appendChild(h2);
+      const msg = document.createElement('p'); msg.className = 'profile-empty';
+      msg.textContent = `No loans found for "${username}" — check the spelling, or they may not be in this dataset.`;
+      card.appendChild(msg);
+      contentEl.appendChild(card);
+      return;
+    }
+
+    const headerCard = document.createElement('div'); headerCard.className = 'card';
+    const row = document.createElement('div'); row.className = 'profile-header-row';
+    const h2 = document.createElement('h2'); h2.textContent = p.displayName; row.appendChild(h2);
+    if (p.asLender.length) { const b = document.createElement('span'); b.className = 'profile-role-badge'; b.textContent = 'Lender'; row.appendChild(b); }
+    if (p.asBorrower.length) { const b = document.createElement('span'); b.className = 'profile-role-badge'; b.textContent = 'Borrower'; row.appendChild(b); }
+    if (p.activeCount > 0) { const b = document.createElement('span'); b.className = 'profile-role-badge'; b.textContent = `${p.activeCount} active loan${p.activeCount === 1 ? '' : 's'}`; row.appendChild(b); }
+    if (p.overdueCount > 0) { const b = document.createElement('span'); b.className = 'profile-role-badge warn'; b.textContent = `${p.overdueCount} overdue`; row.appendChild(b); }
+    headerCard.appendChild(row);
+    const sub = document.createElement('p'); sub.className = 'profile-sub';
+    sub.textContent = `${p.uniqueCounterparts.toLocaleString()} unique counterpart${p.uniqueCounterparts === 1 ? '' : 's'} · active ${fmtDate(p.firstT)} – ${fmtDate(p.lastT)} · all-time, independent of the date filter elsewhere on this dashboard`;
+    headerCard.appendChild(sub);
+    contentEl.appendChild(headerCard);
+
+    const kpiCard = document.createElement('div'); kpiCard.className = 'card';
+    const kpiRow = document.createElement('div'); kpiRow.className = 'kpi-row';
+    const kpis = [];
+    if (p.lenderSummary) {
+      kpis.push({ label: 'Loans given', raw: p.asLender.length, fmt: fmtNum });
+      kpis.push({ label: 'Total $ lent', raw: p.lenderSummary.total_amount, fmt: fmtMoney });
+      kpis.push({ label: "Borrowers' repaid rate", raw: p.lenderSummary.repaid_rate_pct, fmt: fmtPct });
+    }
+    if (p.borrowerSummary) {
+      kpis.push({ label: 'Loans taken', raw: p.asBorrower.length, fmt: fmtNum });
+      kpis.push({ label: 'Total $ borrowed', raw: p.borrowerSummary.total_amount, fmt: fmtMoney });
+      kpis.push({ label: 'Own repaid rate', raw: p.borrowerSummary.repaid_rate_pct, fmt: fmtPct });
+    }
+    kpis.push({ label: 'Outstanding now', raw: p.outstanding, fmt: fmtMoney });
+    kpis.forEach((k, i) => {
+      const tile = document.createElement('div'); tile.className = 'stat-tile'; tile.style.animationDelay = (i * 45) + 'ms';
+      const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = k.label;
+      const val = document.createElement('div'); val.className = 'value'; val.textContent = k.raw == null ? '—' : k.fmt(k.raw);
+      tile.appendChild(lab); tile.appendChild(val);
+      kpiRow.appendChild(tile);
+    });
+    kpiCard.appendChild(kpiRow);
+    contentEl.appendChild(kpiCard);
+
+    if (p.lenderSummary && p.lenderSummary.top_others.length) {
+      contentEl.appendChild(buildCounterpartTable(
+        `${p.displayName}'s borrowers`,
+        `Every borrower they've lent to, ranked by loans together (top ${p.lenderSummary.top_others.length} of ${p.lenderSummary.unique_others}).`,
+        p.lenderSummary.top_others, 'Borrower'
+      ));
+    }
+    if (p.borrowerSummary && p.borrowerSummary.top_others.length) {
+      contentEl.appendChild(buildCounterpartTable(
+        `${p.displayName}'s lenders`,
+        `Every lender they've borrowed from, ranked by loans together (top ${p.borrowerSummary.top_others.length} of ${p.borrowerSummary.unique_others}).`,
+        p.borrowerSummary.top_others, 'Lender'
+      ));
+    }
+
+    if (p.unpaidMentions.length) {
+      const card = document.createElement('div'); card.className = 'card';
+      const h2u = document.createElement('h2'); h2u.textContent = 'Unpaid-flag mentions'; h2u.style.marginBottom = '2px';
+      card.appendChild(h2u);
+      const subU = document.createElement('p'); subU.className = 'card-sub';
+      subU.textContent = `${p.unpaidMentions.length} loan${p.unpaidMentions.length === 1 ? '' : 's'} involving this person flagged UNPAID by LoansBot in a lookup someone ran — a real signal, not a complete list.`;
+      card.appendChild(subU);
+      const scroll = document.createElement('div'); scroll.className = 'table-scroll';
+      const table = document.createElement('table'); table.className = 'detail-table';
+      const thead = document.createElement('thead'); const htr = document.createElement('tr');
+      ['Lender', 'Borrower', 'Amount', 'Date given'].forEach(l => { const th = document.createElement('th'); th.textContent = l; htr.appendChild(th); });
+      thead.appendChild(htr); table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      p.unpaidMentions.forEach(x => {
+        const tr = document.createElement('tr');
+        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.appendChild(makeNameLink(x.l)); tr.appendChild(lTd);
+        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b)); tr.appendChild(bTd);
+        const amtTd = document.createElement('td'); amtTd.textContent = fmtMoney(x.p) + (x.c && x.c !== 'USD' ? ` ${x.c}` : ''); tr.appendChild(amtTd);
+        const dtTd = document.createElement('td'); dtTd.textContent = fmtDate(x.t); tr.appendChild(dtTd);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); scroll.appendChild(table); card.appendChild(scroll);
+      contentEl.appendChild(card);
+    }
+
+    initProfileActivityTable(contentEl, p.allActivity);
+  }
+
   // ---------- Page routing: each nav link is its own "page" via the URL hash ----------
   // SVG charts on a hidden page measure clientWidth as 0 (display:none containers report zero
   // width), so a page's charts need a redraw the moment it actually becomes visible — otherwise
@@ -2889,7 +3178,13 @@
 
   function currentPageFromHash() {
     const raw = (location.hash || '').replace(/^#/, '');
+    if (raw.startsWith('profile/')) return 'profile';
     return PAGES.includes(raw) ? raw : 'overview';
+  }
+
+  function currentProfileUsernameFromHash() {
+    const raw = (location.hash || '').replace(/^#/, '');
+    return raw.startsWith('profile/') ? decodeURIComponent(raw.slice('profile/'.length)) : null;
   }
 
   function showPage(page, opts) {
@@ -2898,12 +3193,15 @@
       el.classList.toggle('active', el.dataset.page === page);
     });
     navLinks.forEach(a => a.classList.toggle('active', a.dataset.page === page));
+    if (page === 'profile') renderProfile(currentProfileUsernameFromHash());
     if (!opts.skipScroll) window.scrollTo(0, 0);
     if (!visitedPages.has(page)) {
       visitedPages.add(page);
       redrawAllCharts();
     }
   }
+
+  document.getElementById('profileBackBtn').addEventListener('click', () => history.back());
 
   window.addEventListener('hashchange', () => showPage(currentPageFromHash()));
   showPage(currentPageFromHash(), { skipScroll: true });
