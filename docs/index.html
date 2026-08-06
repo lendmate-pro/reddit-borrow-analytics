@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>r/borrow LIVE Analytics</title>
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="https://lendmate.pro/images/logo.png">
@@ -566,15 +567,6 @@
   footer.notes b { color: var(--text-secondary); }
 
   /* ---------- Periscope ---------- */
-  .periscope-intro { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
-  .periscope-intro-icon {
-    font-size: 26px;
-    width: 46px; height: 46px;
-    flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--series-1-wash);
-    border-radius: 50%;
-  }
   .periscope-ask-row { display: flex; gap: 8px; margin: 16px 0 12px; }
   .periscope-input {
     flex: 1 1 auto;
@@ -620,23 +612,16 @@
 
   .periscope-reveal {
     margin-top: 18px;
-    background: linear-gradient(165deg, var(--series-1-wash), transparent 60%), var(--page-plane);
+    background: var(--page-plane);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 22px 24px;
-    text-align: center;
+    border-radius: 12px;
+    padding: 18px 20px;
   }
-  .periscope-reveal.show { animation: periscopeReveal 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-  @keyframes periscopeReveal {
-    0% { opacity: 0; transform: scale(0.97) translateY(6px); }
-    60% { opacity: 1; }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  .periscope-reveal-q { font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 10px; }
-  .periscope-reveal-icon { font-size: 30px; margin-bottom: 6px; }
-  .periscope-reveal-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-  .periscope-reveal-body { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; max-width: 620px; margin: 0 auto; }
-  .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 8px 0; }
+  .periscope-reveal.show { animation: fadeSlideUp 0.35s ease both; }
+  .periscope-reveal-q { font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+  .periscope-reveal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+  .periscope-reveal-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 4px 0; }
 
   .periscope-feed-heading { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 14px; }
   .periscope-shuffle-btn {
@@ -662,13 +647,13 @@
   .periscope-card {
     background: var(--surface-1);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 16px 18px;
+    border-left: 3px solid var(--series-1);
+    border-radius: 10px;
+    padding: 14px 16px 16px;
     animation: fadeSlideUp 0.4s ease both;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
-  .periscope-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: var(--series-1); }
-  .periscope-card-icon { font-size: 20px; margin-bottom: 8px; }
+  .periscope-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
   .periscope-card-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
   .periscope-card-body { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
 
@@ -812,14 +797,14 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 15:47 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 15:55 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
 
     <nav class="quick-nav" id="quickNav">
       <a href="#overview" data-page="overview">Overview</a>
-      <a href="#periscope" data-page="periscope">🔭 Periscope</a>
+      <a href="#periscope" data-page="periscope">Periscope</a>
       <a href="#insights" data-page="insights">Insights</a>
       <a href="#lenders" data-page="lenders">Lenders</a>
       <a href="#borrowers" data-page="borrowers">Borrowers</a>
@@ -873,16 +858,11 @@
     <div class="section-heading" id="section-periscope">Periscope</div>
 
     <div class="card">
-      <div class="periscope-intro">
-        <div class="periscope-intro-icon">🔭</div>
-        <div>
-          <h2 style="margin-bottom:2px;">Ask Periscope</h2>
-          <p class="card-sub">Point it at the data and ask anything — peak hours, what it'd take to lend like the top lender, current rates. It answers from what's actually in this window, live.</p>
-        </div>
-      </div>
+      <h2 style="margin-bottom:2px;">Ask Periscope</h2>
+      <p class="card-sub">Point it at the data and ask anything — peak hours, what it'd take to lend like the top lender, current rates. It answers from what's actually in this window, live.</p>
       <div class="periscope-ask-row">
         <input type="text" id="periscopeAsk" class="periscope-input" placeholder="Ask Periscope anything… e.g. What are the peak hours for loans?" />
-        <button id="periscopeAskBtn" class="periscope-ask-btn" type="button">🔭 Reveal</button>
+        <button id="periscopeAskBtn" class="periscope-ask-btn" type="button">Reveal</button>
       </div>
       <div class="periscope-chip-row" id="periscopeChips">
         <button class="periscope-chip" type="button">What are the peak hours for loans?</button>
@@ -2256,7 +2236,7 @@
 
     function defaultReveal() {
       if (claudeInsights) {
-        return { emoji: '🔭', title: 'This hour, from Claude', body: claudeInsights.headline };
+        return { title: "Today's headline", body: claudeInsights.headline };
       }
       return randomPoolAnswer();
     }
@@ -2285,10 +2265,9 @@
           q.textContent = `"${questionText}"`;
           revealEl.appendChild(q);
         }
-        const icon = document.createElement('div'); icon.className = 'periscope-reveal-icon'; icon.textContent = card.emoji;
         const title = document.createElement('div'); title.className = 'periscope-reveal-title'; title.textContent = card.title;
         const body = document.createElement('div'); body.className = 'periscope-reveal-body'; body.textContent = card.body;
-        revealEl.appendChild(icon); revealEl.appendChild(title); revealEl.appendChild(body);
+        revealEl.appendChild(title); revealEl.appendChild(body);
       }
       void revealEl.offsetWidth;
       revealEl.classList.add('show');
@@ -2298,7 +2277,7 @@
       let shown;
       if (claudeInsights && claudeInsights.insights.length) {
         shown = claudeInsights.insights;
-        feedSubEl.textContent = `Claude's read on this hour's data — generated ${relativeTime(claudeInsights.generated_at)}.`;
+        feedSubEl.textContent = `Claude's daily read on the data — generated ${relativeTime(claudeInsights.generated_at)}.`;
         shuffleBtnEl.style.display = 'none';
       } else {
         const pool = buildPool();
@@ -2315,10 +2294,9 @@
         const div = document.createElement('div');
         div.className = 'periscope-card';
         div.style.animationDelay = (i * 45) + 'ms';
-        const icon = document.createElement('div'); icon.className = 'periscope-card-icon'; icon.textContent = c.emoji;
         const title = document.createElement('div'); title.className = 'periscope-card-title'; title.textContent = c.title;
         const body = document.createElement('div'); body.className = 'periscope-card-body'; body.textContent = c.body;
-        div.appendChild(icon); div.appendChild(title); div.appendChild(body);
+        div.appendChild(title); div.appendChild(body);
         gridEl.appendChild(div);
       });
     }
