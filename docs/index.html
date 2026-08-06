@@ -565,6 +565,113 @@
   }
   footer.notes b { color: var(--text-secondary); }
 
+  /* ---------- Periscope ---------- */
+  .periscope-intro { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+  .periscope-intro-icon {
+    font-size: 26px;
+    width: 46px; height: 46px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--series-1-wash);
+    border-radius: 50%;
+  }
+  .periscope-ask-row { display: flex; gap: 8px; margin: 16px 0 12px; }
+  .periscope-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-family: inherit;
+  }
+  .periscope-input:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  .periscope-ask-btn {
+    flex-shrink: 0;
+    background: var(--series-1);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease, transform 0.1s ease;
+  }
+  .periscope-ask-btn:hover { filter: brightness(0.94); }
+  .periscope-ask-btn:active { transform: scale(0.96); }
+  .periscope-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .periscope-chip {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .periscope-chip:hover { background: var(--series-1-wash); color: var(--text-primary); border-color: var(--series-1); }
+  .periscope-chip:active { transform: scale(0.96); }
+
+  .periscope-reveal {
+    margin-top: 18px;
+    background: linear-gradient(165deg, var(--series-1-wash), transparent 60%), var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    text-align: center;
+  }
+  .periscope-reveal.show { animation: periscopeReveal 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  @keyframes periscopeReveal {
+    0% { opacity: 0; transform: scale(0.97) translateY(6px); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .periscope-reveal-q { font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 10px; }
+  .periscope-reveal-icon { font-size: 30px; margin-bottom: 6px; }
+  .periscope-reveal-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+  .periscope-reveal-body { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; max-width: 620px; margin: 0 auto; }
+  .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 8px 0; }
+
+  .periscope-feed-heading { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 14px; }
+  .periscope-shuffle-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 13px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease, transform 0.1s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .periscope-shuffle-btn:hover { color: var(--text-primary); border-color: var(--series-1); background: var(--series-1-wash); }
+  .periscope-shuffle-btn:active { transform: scale(0.96); }
+  .periscope-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .periscope-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 16px 18px;
+    animation: fadeSlideUp 0.4s ease both;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .periscope-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: var(--series-1); }
+  .periscope-card-icon { font-size: 20px; margin-bottom: 8px; }
+  .periscope-card-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+  .periscope-card-body { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+
   @media (max-width: 860px) {
     table.rank-table { font-size: 12px; }
   }
@@ -581,6 +688,8 @@
     .detail-panel { padding: 14px 14px 16px 20px; }
     #refreshPageBtn .refresh-label { display: none; }
     #logoutBtn .logout-label { display: none; }
+    .periscope-ask-row { flex-direction: column; }
+    .periscope-ask-btn { width: 100%; }
   }
 </style>
 
@@ -703,13 +812,14 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 14:47 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 06, 2026 15:15 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
 
     <nav class="quick-nav" id="quickNav">
       <a href="#overview" data-page="overview">Overview</a>
+      <a href="#periscope" data-page="periscope">🔭 Periscope</a>
       <a href="#insights" data-page="insights">Insights</a>
       <a href="#lenders" data-page="lenders">Lenders</a>
       <a href="#borrowers" data-page="borrowers">Borrowers</a>
@@ -755,6 +865,45 @@
         <span class="hint" id="projectionHint"></span>
       </div>
       <div id="trendChart"></div>
+    </div>
+
+    </section>
+
+    <section class="page-section" data-page="periscope">
+    <div class="section-heading" id="section-periscope">Periscope</div>
+
+    <div class="card">
+      <div class="periscope-intro">
+        <div class="periscope-intro-icon">🔭</div>
+        <div>
+          <h2 style="margin-bottom:2px;">Ask Periscope</h2>
+          <p class="card-sub">Point it at the data and ask anything — peak hours, what it'd take to lend like the top lender, current rates. It answers from what's actually in this window, live.</p>
+        </div>
+      </div>
+      <div class="periscope-ask-row">
+        <input type="text" id="periscopeAsk" class="periscope-input" placeholder="Ask Periscope anything… e.g. What are the peak hours for loans?" />
+        <button id="periscopeAskBtn" class="periscope-ask-btn" type="button">🔭 Reveal</button>
+      </div>
+      <div class="periscope-chip-row" id="periscopeChips">
+        <button class="periscope-chip" type="button">What are the peak hours for loans?</button>
+        <button class="periscope-chip" type="button">How do I do so many loans?</button>
+        <button class="periscope-chip" type="button">What money is required for it?</button>
+        <button class="periscope-chip" type="button">What's the average interest rate this time?</button>
+        <button class="periscope-chip" type="button">How do I achieve such a big number?</button>
+        <button class="periscope-chip" type="button">Give me a crazy insight</button>
+      </div>
+      <div class="periscope-reveal" id="periscopeReveal"></div>
+    </div>
+
+    <div class="card">
+      <div class="periscope-feed-heading">
+        <div>
+          <h2 style="margin-bottom:2px;">Insight feed</h2>
+          <p class="card-sub" style="margin:0;">Fresh angles on the same data, picked at random — this window only.</p>
+        </div>
+        <button class="periscope-shuffle-btn" id="periscopeShuffle" type="button"><span>🔀</span> Show me another</button>
+      </div>
+      <div class="periscope-grid" id="periscopeGrid"></div>
     </div>
 
     </section>
@@ -1928,6 +2077,245 @@
   }
   const loansTableSection = initLoansTableSection();
 
+  // ---------- Periscope: ask-anything insight engine over the current date window ----------
+  function initPeriscopeSection() {
+    const askEl = document.getElementById('periscopeAsk');
+    const askBtnEl = document.getElementById('periscopeAskBtn');
+    const chipsEl = document.getElementById('periscopeChips');
+    const revealEl = document.getElementById('periscopeReveal');
+    const gridEl = document.getElementById('periscopeGrid');
+    const shuffleBtnEl = document.getElementById('periscopeShuffle');
+
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let loans = [];
+    let lastAsked = null;
+
+    function windowDays() {
+      return Math.max(1, (currentWindow.end - currentWindow.start) / 86400);
+    }
+    function hourGrid(list) {
+      const hours = Array(24).fill(0);
+      list.forEach(x => { hours[istDate(x.t).getUTCHours()] += 1; });
+      return hours;
+    }
+    function dayGrid(list) {
+      const days = Array(7).fill(0);
+      list.forEach(x => { days[istDate(x.t).getUTCDay()] += 1; });
+      return days;
+    }
+    function hourLabel(h) {
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      return `${h12}${h < 12 ? 'AM' : 'PM'}`;
+    }
+
+    // ---- Direct-answer generators, one per theme ----
+    function answerPeakHours() {
+      if (!loans.length) return null;
+      const hours = hourGrid(loans);
+      const maxCount = Math.max(...hours);
+      const h = hours.indexOf(maxCount);
+      const share = (maxCount / loans.length) * 100;
+      const days = dayGrid(loans);
+      const maxDayCount = Math.max(...days);
+      const d = days.indexOf(maxDayCount);
+      return {
+        emoji: '🔭',
+        title: `Peak hour: ${hourLabel(h)}–${hourLabel((h + 1) % 24)} IST`,
+        body: `${maxCount.toLocaleString()} of ${loans.length.toLocaleString()} loans in this window (${share.toFixed(1)}%) were funded in that single hour. ${DAY_NAMES[d]} is the busiest day overall, with ${maxDayCount.toLocaleString()} loans.`,
+      };
+    }
+
+    function answerBlueprint() {
+      const top = currentAgg.lenders[0];
+      if (!top || top.num_loans < 2) return null;
+      const pace = windowDays() / top.num_loans;
+      return {
+        emoji: '📈',
+        title: `The blueprint: how ${top.name} hit ${top.num_loans.toLocaleString()} loans`,
+        body: `Roughly one loan every ${pace.toFixed(1)} days, averaging ${fmtMoney(top.avg_loan_size)} each. ${top.repeat_others_pct.toFixed(0)}% of their borrowers came back for another loan — that's the real engine: relending to people who already paid you back, not chasing new borrowers every time.`,
+      };
+    }
+
+    function answerCapital() {
+      const top = currentAgg.lenders[0];
+      if (!top || !top.avg_duration_days) return null;
+      const pace = top.num_loans / windowDays();
+      const concurrent = pace * top.avg_duration_days;
+      const capital = concurrent * top.avg_loan_size;
+      return {
+        emoji: '💰',
+        title: `Capital to match that pace: ~${fmtMoney(capital)}`,
+        body: `At ${top.name}'s rate (${pace.toFixed(2)} loans/day, ~${top.avg_duration_days.toFixed(0)}-day average duration), about ${concurrent.toFixed(1)} loans are outstanding at any given moment — call it ${fmtMoney(capital)} in capital that needs to be cycling continuously, not sitting idle.`,
+      };
+    }
+
+    function answerInterestRate() {
+      const o = currentAgg.overall;
+      if (o.avg_interest_pct == null) return null;
+      const span = currentWindow.end - currentWindow.start;
+      const priorFees = RAW.loans.filter(x => x.t >= currentWindow.start - span && x.t < currentWindow.start && x.f != null).map(x => x.f);
+      let trendTxt = '';
+      if (priorFees.length) {
+        const priorAvg = avg(priorFees);
+        const diff = o.avg_interest_pct - priorAvg;
+        trendTxt = ` That's ${Math.abs(diff).toFixed(1)} points ${diff >= 0 ? 'higher' : 'lower'} than the equivalent prior period (${fmtPct(priorAvg)}).`;
+      }
+      const withFee = loans.filter(x => x.f != null).length;
+      return {
+        emoji: '💸',
+        title: `Average rate this window: ${fmtPct(o.avg_interest_pct)}`,
+        body: `Across ${withFee.toLocaleString()} loans with a stated fee.${trendTxt}`,
+      };
+    }
+
+    // ---- Ambient insight pool for the feed + fallback answers ----
+    function buildPool() {
+      const items = [];
+      const o = currentAgg.overall;
+
+      const ph = answerPeakHours(); if (ph) items.push(ph);
+
+      if (loans.length) {
+        const hours = hourGrid(loans);
+        const nonZero = hours.map((c, h) => ({ c, h })).filter(x => x.c > 0);
+        if (nonZero.length) {
+          const min = nonZero.reduce((a, b) => (b.c < a.c ? b : a));
+          items.push({ emoji: '🌙', title: `Quietest active hour: ${hourLabel(min.h)}`, body: `Just ${min.c.toLocaleString()} loan${min.c === 1 ? '' : 's'} funded around ${hourLabel(min.h)} IST in this window — the calm before the next rush.` });
+        }
+        const biggest = loans.reduce((a, b) => (b.p > a.p ? b : a));
+        items.push({ emoji: '🐋', title: `Biggest loan: ${fmtMoney(biggest.p)}`, body: `${biggest.l} funded ${biggest.b} for ${fmtMoney(biggest.p)} on ${fmtDate(biggest.t)}${biggest.f != null ? ` at ${fmtPct(biggest.f)} fee` : ''}.` });
+
+        const first = loans.reduce((a, b) => (a.t < b.t ? a : b));
+        items.push({ emoji: '🌱', title: 'How this window started', body: `The first loan was ${first.l} → ${first.b} for ${fmtMoney(first.p)} on ${fmtDate(first.t)}.` });
+
+        const byDay = new Map();
+        loans.forEach(x => { const k = istDate(x.t).toISOString().slice(0, 10); byDay.set(k, (byDay.get(k) || 0) + 1); });
+        let bestDay = null, bestCount = 0;
+        for (const [k, c] of byDay) if (c > bestCount) { bestCount = c; bestDay = k; }
+        if (bestDay) items.push({ emoji: '🔥', title: `Busiest single day: ${bestCount.toLocaleString()} loans`, body: `${new Date(bestDay + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} was the single busiest day in this window.` });
+      }
+
+      const bp = answerBlueprint(); if (bp) items.push(bp);
+      const cap = answerCapital(); if (cap) items.push(cap);
+      const ir = answerInterestRate(); if (ir) items.push(ir);
+
+      if (loans.length >= 10) {
+        const weekend = loans.filter(x => [0, 6].includes(istDate(x.t).getUTCDay()));
+        const weekday = loans.filter(x => ![0, 6].includes(istDate(x.t).getUTCDay()));
+        if (weekend.length >= 3 && weekday.length >= 3) {
+          const wdAvg = avg(weekday.map(x => x.p)), weAvg = avg(weekend.map(x => x.p));
+          const bigger = weAvg > wdAvg ? 'weekend' : 'weekday';
+          const diffPct = wdAvg ? Math.abs((weAvg - wdAvg) / wdAvg * 100) : 0;
+          items.push({ emoji: '📅', title: `${bigger === 'weekend' ? 'Weekends' : 'Weekdays'} run bigger`, body: `Average loan size is ${diffPct.toFixed(0)}% higher ${bigger === 'weekend' ? 'on weekends' : 'on weekdays'} (${fmtMoney(weAvg)} vs ${fmtMoney(wdAvg)}).` });
+        }
+      }
+
+      if (currentAgg.lenders.length >= 10) {
+        const sorted = currentAgg.lenders;
+        const topCount = Math.max(1, Math.round(sorted.length * 0.1));
+        const topDollars = sorted.slice(0, topCount).reduce((s, x) => s + x.total_amount, 0);
+        const share = o.total_dollars ? (topDollars / o.total_dollars * 100) : 0;
+        items.push({ emoji: '⚡', title: `The top 10% carry ${share.toFixed(0)}% of the volume`, body: `${topCount.toLocaleString()} lender${topCount === 1 ? '' : 's'} out of ${sorted.length.toLocaleString()} account for ${fmtMoney(topDollars)} of the ${fmtMoney(o.total_dollars)} lent in this window. Consistency beats headcount.` });
+      }
+
+      const withBoth = loans.filter(x => x.f != null && x.d != null);
+      if (withBoth.length >= 15) {
+        const short = withBoth.filter(x => x.d <= 7);
+        const long = withBoth.filter(x => x.d > 7);
+        if (short.length >= 3 && long.length >= 3) {
+          const sAvg = avg(short.map(x => x.f)), lAvg = avg(long.map(x => x.f));
+          const higher = sAvg > lAvg ? 'Short' : 'Long';
+          items.push({ emoji: '🔬', title: `${higher} loans charge more`, body: `Loans of 7 days or less average ${fmtPct(sAvg)} in fees, versus ${fmtPct(lAvg)} for longer loans. ${higher === 'Short' ? 'Speed costs a premium.' : 'Patience is cheaper — longer terms average lower fees.'}` });
+        }
+      }
+
+      items.push({ emoji: '⏳', title: `${fmtMoney(totalOutstanding)} outstanding right now`, body: 'Across every active, unpaid loan on record — real capital currently out in the world, all-time (not scoped to this window).' });
+      items.push({ emoji: '🌐', title: `${(o.unique_lenders + o.unique_borrowers).toLocaleString()} people touched this window`, body: `${o.unique_lenders.toLocaleString()} lenders and ${o.unique_borrowers.toLocaleString()} borrowers were active in the selected range.` });
+
+      return items;
+    }
+
+    function randomPoolAnswer() {
+      const pool = buildPool();
+      if (!pool.length) return null;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function routeAsk(text) {
+      const t = text.toLowerCase();
+      if (/hour|time of day|peak|busiest|when/.test(t)) return answerPeakHours() || randomPoolAnswer();
+      if (/capital|money|fund|afford|\bneed/.test(t)) return answerCapital() || answerBlueprint() || randomPoolAnswer();
+      if (/interest|rate|fee/.test(t)) return answerInterestRate() || randomPoolAnswer();
+      if (/big number|achieve|so many|how do i|scale|grow|blueprint/.test(t)) return answerBlueprint() || randomPoolAnswer();
+      return randomPoolAnswer();
+    }
+
+    function renderReveal(card, questionText) {
+      revealEl.innerHTML = '';
+      revealEl.classList.remove('show');
+      if (!card) {
+        const empty = document.createElement('div');
+        empty.className = 'periscope-empty';
+        empty.textContent = 'Not enough data in this window for that one yet — try widening the date range, or tap a suggestion below.';
+        revealEl.appendChild(empty);
+      } else {
+        if (questionText) {
+          const q = document.createElement('div');
+          q.className = 'periscope-reveal-q';
+          q.textContent = `"${questionText}"`;
+          revealEl.appendChild(q);
+        }
+        const icon = document.createElement('div'); icon.className = 'periscope-reveal-icon'; icon.textContent = card.emoji;
+        const title = document.createElement('div'); title.className = 'periscope-reveal-title'; title.textContent = card.title;
+        const body = document.createElement('div'); body.className = 'periscope-reveal-body'; body.textContent = card.body;
+        revealEl.appendChild(icon); revealEl.appendChild(title); revealEl.appendChild(body);
+      }
+      void revealEl.offsetWidth;
+      revealEl.classList.add('show');
+    }
+
+    function renderGrid() {
+      const pool = buildPool();
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      const shown = pool.slice(0, 6);
+      gridEl.innerHTML = '';
+      shown.forEach((c, i) => {
+        const div = document.createElement('div');
+        div.className = 'periscope-card';
+        div.style.animationDelay = (i * 45) + 'ms';
+        const icon = document.createElement('div'); icon.className = 'periscope-card-icon'; icon.textContent = c.emoji;
+        const title = document.createElement('div'); title.className = 'periscope-card-title'; title.textContent = c.title;
+        const body = document.createElement('div'); body.className = 'periscope-card-body'; body.textContent = c.body;
+        div.appendChild(icon); div.appendChild(title); div.appendChild(body);
+        gridEl.appendChild(div);
+      });
+    }
+
+    function ask(text) {
+      lastAsked = text;
+      askEl.value = text;
+      renderReveal(routeAsk(text), text);
+    }
+
+    askBtnEl.addEventListener('click', () => { const v = askEl.value.trim(); if (v) ask(v); });
+    askEl.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); const v = askEl.value.trim(); if (v) ask(v); } });
+    chipsEl.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => ask(btn.textContent)));
+    shuffleBtnEl.addEventListener('click', renderGrid);
+
+    return {
+      render(newList) {
+        loans = newList;
+        renderGrid();
+        if (lastAsked) renderReveal(routeAsk(lastAsked), lastAsked);
+        else renderReveal(randomPoolAnswer(), null);
+      },
+    };
+  }
+  const periscopeSection = initPeriscopeSection();
+
   // ---------- Defaults: overall KPI tiles (all-time, independent of the date filter above) ----------
   function renderDefaultsKpis() {
     const row = document.getElementById('defaultsKpiRow');
@@ -2544,6 +2932,7 @@
     borrowerSection.render(currentAgg.borrowers);
     pairsSection.render(currentAgg.pairs);
     loansTableSection.render(currentFiltered);
+    periscopeSection.render(currentFiltered);
     renderHeatmapActivity(currentFiltered);
     renderDayOfMonth(currentFiltered);
     renderHeatmapFeeSize(currentFiltered);
