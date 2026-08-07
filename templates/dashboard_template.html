@@ -378,6 +378,16 @@
   .trend-dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
   .trend-line-projected { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-dasharray: 5 4; stroke-linecap: round; opacity: 0.6; }
   .trend-dot-projected { fill: var(--surface-1); stroke: var(--series-1); stroke-width: 2; }
+  .pace-line-today { fill: none; stroke: var(--series-1); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .pace-area-today { fill: var(--series-1-wash); }
+  .pace-dot-today { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+  .pace-line-compare { fill: none; stroke: var(--series-2); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .pace-dot-compare { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
+  .pace-line-compare-rest { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-dasharray: 4 4; opacity: 0.45; stroke-linecap: round; }
+  .pace-now-line { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .pace-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+  .pace-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .pace-legend .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
   .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; transform-box: fill-box; transform-origin: center; }
   .heat-cell.empty { fill: var(--gridline); }
@@ -807,6 +817,30 @@
         <span class="hint" id="projectionHint"></span>
       </div>
       <div id="trendChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Today's pace</h2>
+      <p class="card-sub" id="paceSub">How today stacks up against a comparable earlier day, hour by hour — all-time data, independent of the date filter above.</p>
+      <div class="filter-row" style="margin-bottom:8px;">
+        <div class="top-n-toggle" id="paceMetricToggle">
+          <button data-metric="funded" class="active">Loans funded</button>
+          <button data-metric="posted">Loan posts made</button>
+        </div>
+        <span class="hint">vs.</span>
+        <div class="top-n-toggle" id="paceCompareToggle">
+          <button data-compare="1">Yesterday</button>
+          <button data-compare="7" class="active">Last week</button>
+          <button data-compare="28">4 weeks ago</button>
+        </div>
+      </div>
+      <p class="card-sub" id="paceHeadline" style="margin:0 0 10px; font-weight:600; color:var(--text-primary);"></p>
+      <div id="paceChart"></div>
+      <div class="pace-legend">
+        <span><span class="swatch" style="background:var(--series-1);"></span>Today</span>
+        <span><span class="swatch" style="background:var(--series-2);"></span><span id="paceCompareLegendLabel">Comparison day</span></span>
+      </div>
+      <p class="card-sub" id="paceFootnote" style="margin:10px 0 0;"></p>
     </div>
 
     </section>
@@ -2428,6 +2462,177 @@
     renderTrend();
   });
 
+  // ---------- Today's pace: today vs. an earlier comparable day, hour by hour, all-time (not date-filter-scoped) ----------
+  const PACE_METRIC_LABELS = { funded: 'loans funded', posted: 'loan posts made' };
+  const PACE_COMPARE_LABELS = { 1: 'yesterday', 7: 'last week', 28: '4 weeks ago' };
+  let paceMetric = 'funded';
+  let paceCompareDays = 7;
+
+  function paceDayStartIST(t) {
+    return Math.floor((t + IST_OFFSET) / 86400) * 86400 - IST_OFFSET;
+  }
+  function paceHourLabel(h) {
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}${h < 12 ? 'AM' : 'PM'}`;
+  }
+  function paceCumulativeHourly(loans, dayStart, field) {
+    const hourly = Array(24).fill(0);
+    loans.forEach(x => {
+      const t = x[field];
+      if (t == null || t < dayStart || t >= dayStart + 86400) return;
+      hourly[istDate(t).getUTCHours()] += 1;
+    });
+    const cumulative = [];
+    let running = 0;
+    for (let h = 0; h < 24; h++) { running += hourly[h]; cumulative.push(running); }
+    return cumulative;
+  }
+
+  function renderPaceChart() {
+    const el = document.getElementById('paceChart');
+    if (!el.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
+
+    const field = paceMetric === 'funded' ? 't' : 'pt';
+    const metricLabel = PACE_METRIC_LABELS[paceMetric];
+    const compareLabel = PACE_COMPARE_LABELS[paceCompareDays];
+    document.getElementById('paceCompareLegendLabel').textContent = compareLabel.charAt(0).toUpperCase() + compareLabel.slice(1);
+    document.getElementById('paceFootnote').textContent = paceMetric === 'posted'
+      ? "Only counts requests that eventually got funded — asks that never found a lender aren't tracked here."
+      : '';
+
+    const now = Date.now() / 1000;
+    const todayStart = paceDayStartIST(now);
+    const compareStart = todayStart - paceCompareDays * 86400;
+    const nowIST = istDate(now);
+    const currentHour = nowIST.getUTCHours() + nowIST.getUTCMinutes() / 60;
+    const currentHourFloor = Math.floor(currentHour);
+
+    const todayCum = paceCumulativeHourly(RAW.loans, todayStart, field);
+    const compareCum = paceCumulativeHourly(RAW.loans, compareStart, field);
+
+    const todayNow = todayCum[currentHourFloor] || 0;
+    const compareNow = compareCum[currentHourFloor] || 0;
+    const diff = todayNow - compareNow;
+    const diffStr = compareNow > 0
+      ? `${diff >= 0 ? '+' : ''}${Math.round(diff / compareNow * 100)}%`
+      : (diff !== 0 ? `${diff >= 0 ? '+' : ''}${diff}` : 'even');
+    document.getElementById('paceHeadline').textContent =
+      `As of ${paceHourLabel(currentHourFloor)} IST today, you're at ${todayNow.toLocaleString()} ${metricLabel} — ${compareNow.toLocaleString()} at this point ${compareLabel} (${diffStr}).`;
+
+    const W = el.clientWidth, H = 200, PAD = { l: 40, r: 16, t: 12, b: 28 };
+    const maxV = Math.max(1, ...todayCum, ...compareCum);
+    const niceMax = Math.ceil(maxV / 5) * 5 || maxV + 1;
+    const x = h => PAD.l + (h / 23) * (W - PAD.l - PAD.r);
+    const y = v => H - PAD.b - (v / niceMax) * (H - PAD.t - PAD.b);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = Math.round(niceMax * i / ticks);
+      const gy = y(v);
+      const gline = document.createElementNS(svg.namespaceURI, 'line');
+      gline.setAttribute('x1', PAD.l); gline.setAttribute('x2', W - PAD.r);
+      gline.setAttribute('y1', gy); gline.setAttribute('y2', gy);
+      gline.setAttribute('class', 'gridline');
+      svg.appendChild(gline);
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', PAD.l - 8); txt.setAttribute('y', gy + 3);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = v.toLocaleString();
+      svg.appendChild(txt);
+    }
+    [0, 3, 6, 9, 12, 15, 18, 21].forEach(h => {
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', x(h)); txt.setAttribute('y', H - 8);
+      txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = h + ':00';
+      svg.appendChild(txt);
+    });
+
+    // comparison line: solid through the equivalent "now" hour (directly comparable to today),
+    // then a lighter dashed continuation showing how that whole day actually turned out
+    const matchPath = compareCum.slice(0, currentHourFloor + 1)
+      .map((v, h) => `${h === 0 ? 'M' : 'L'} ${x(h)} ${y(v)}`).join(' ');
+    const compareLine = document.createElementNS(svg.namespaceURI, 'path');
+    compareLine.setAttribute('d', matchPath); compareLine.setAttribute('class', 'pace-line-compare');
+    svg.appendChild(compareLine);
+    if (currentHourFloor < 23) {
+      const restPath = compareCum.slice(currentHourFloor)
+        .map((v, idx) => `${idx === 0 ? 'M' : 'L'} ${x(currentHourFloor + idx)} ${y(v)}`).join(' ');
+      const restLine = document.createElementNS(svg.namespaceURI, 'path');
+      restLine.setAttribute('d', restPath); restLine.setAttribute('class', 'pace-line-compare-rest');
+      svg.appendChild(restLine);
+    }
+
+    // today: area + line, only up through the current hour (nothing to show past "now")
+    const todaySlice = todayCum.slice(0, currentHourFloor + 1);
+    let areaPath = `M ${x(0)} ${y(0)} `;
+    todaySlice.forEach((v, h) => areaPath += `L ${x(h)} ${y(v)} `);
+    areaPath += `L ${x(currentHourFloor)} ${y(0)} Z`;
+    const area = document.createElementNS(svg.namespaceURI, 'path');
+    area.setAttribute('d', areaPath); area.setAttribute('class', 'pace-area-today');
+    svg.appendChild(area);
+    const todayPath = todaySlice.map((v, h) => `${h === 0 ? 'M' : 'L'} ${x(h)} ${y(v)}`).join(' ');
+    const todayLine = document.createElementNS(svg.namespaceURI, 'path');
+    todayLine.setAttribute('d', todayPath); todayLine.setAttribute('class', 'pace-line-today');
+    svg.appendChild(todayLine);
+
+    const metricLabelCap = metricLabel.charAt(0).toUpperCase() + metricLabel.slice(1);
+    for (let h = 0; h <= 23; h++) {
+      if (h <= currentHourFloor) {
+        const dot = document.createElementNS(svg.namespaceURI, 'circle');
+        dot.setAttribute('cx', x(h)); dot.setAttribute('cy', y(todayCum[h])); dot.setAttribute('r', 3.5);
+        dot.setAttribute('class', 'pace-dot-today');
+        svg.appendChild(dot);
+        const hit = document.createElementNS(svg.namespaceURI, 'circle');
+        hit.setAttribute('cx', x(h)); hit.setAttribute('cy', y(todayCum[h])); hit.setAttribute('r', 12);
+        hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
+        hit.addEventListener('pointermove', ev => showTooltip(ev.clientX, ev.clientY, `Today, ${paceHourLabel(h)} IST`, [[metricLabelCap + ' so far', todayCum[h].toLocaleString()]]));
+        hit.addEventListener('pointerleave', hideTooltip);
+        svg.appendChild(hit);
+      }
+      const cdot = document.createElementNS(svg.namespaceURI, 'circle');
+      cdot.setAttribute('cx', x(h)); cdot.setAttribute('cy', y(compareCum[h])); cdot.setAttribute('r', 3);
+      cdot.setAttribute('class', 'pace-dot-compare');
+      svg.appendChild(cdot);
+      const chit = document.createElementNS(svg.namespaceURI, 'circle');
+      chit.setAttribute('cx', x(h)); chit.setAttribute('cy', y(compareCum[h])); chit.setAttribute('r', 12);
+      chit.setAttribute('fill', 'transparent'); chit.style.cursor = 'pointer';
+      const chitLabel = h > currentHourFloor ? `${compareLabel} (full day), ${paceHourLabel(h)} IST` : `${compareLabel}, ${paceHourLabel(h)} IST`;
+      chit.addEventListener('pointermove', ev => showTooltip(ev.clientX, ev.clientY, chitLabel, [[metricLabelCap + ' so far', compareCum[h].toLocaleString()]]));
+      chit.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(chit);
+    }
+
+    const nowX = x(currentHour);
+    const nowLine = document.createElementNS(svg.namespaceURI, 'line');
+    nowLine.setAttribute('x1', nowX); nowLine.setAttribute('x2', nowX);
+    nowLine.setAttribute('y1', PAD.t); nowLine.setAttribute('y2', H - PAD.b);
+    nowLine.setAttribute('class', 'pace-now-line');
+    svg.appendChild(nowLine);
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+  }
+
+  document.getElementById('paceMetricToggle').addEventListener('click', ev => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    paceMetric = btn.dataset.metric;
+    [...document.getElementById('paceMetricToggle').children].forEach(b => b.classList.toggle('active', b === btn));
+    renderPaceChart();
+  });
+  document.getElementById('paceCompareToggle').addEventListener('click', ev => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    paceCompareDays = +btn.dataset.compare;
+    [...document.getElementById('paceCompareToggle').children].forEach(b => b.classList.toggle('active', b === btn));
+    renderPaceChart();
+  });
+
   const customControlsEl = document.getElementById('customRangeControls');
   const customFromEl = document.getElementById('customFrom');
   const customToEl = document.getElementById('customTo');
@@ -2890,7 +3095,7 @@
   }
 
   function redrawAllCharts() {
-    renderTrend(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize();
+    renderTrend(); renderPaceChart(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize();
     renderHeatmapActivity(currentFiltered); renderDayOfMonth(currentFiltered); renderHeatmapFeeSize(currentFiltered);
   }
 
