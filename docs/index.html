@@ -890,7 +890,7 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 23:36 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 23:37 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="themeToggleBtn" type="button" title="Switch between light and dark mode">
         <span class="theme-icon theme-icon-sun" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
@@ -2628,8 +2628,8 @@
 
     function updateFeedSub() {
       feedSubEl.textContent = dailyInsights && dailyInsights.insights.length
-        ? `Claude's daily read on the data — generated ${relativeTime(dailyInsights.generated_at)}.`
-        : 'Claude\'s daily read on the data, refreshed every morning.';
+        ? `Daily read on the data — generated ${relativeTime(dailyInsights.generated_at)}.`
+        : 'Daily read on the data, refreshed every morning.';
     }
 
     crazyBtnEl.addEventListener('click', () => {
@@ -2648,7 +2648,7 @@
       renderReveal(defaultReveal());
     }
 
-    // Claude's daily analysis, if published — fetched once client-side; falls back to the
+    // Daily analysis, if published — fetched once client-side; falls back to the
     // deterministic engine above (buildPool/randomPoolAnswer) if it's missing or the fetch errors.
     fetch('./periscope_insights.json', { cache: 'no-store' })
       .then(r => (r.ok ? r.json() : null))
