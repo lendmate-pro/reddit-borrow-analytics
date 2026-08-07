@@ -395,6 +395,9 @@
   .pace-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
   .pace-legend span { display: inline-flex; align-items: center; gap: 6px; }
   .pace-legend .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .pace-live-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--series-1); background: var(--series-1-wash); border-radius: 20px; padding: 3px 9px 3px 7px; margin-left: 8px; vertical-align: middle; }
+  .pace-live-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--series-1); animation: pace-blink 1.8s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .pace-live-badge::before { animation: none; } }
 
   .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; transform-box: fill-box; transform-origin: center; }
   .heat-cell.empty { fill: var(--gridline); }
@@ -772,7 +775,7 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 10:01 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 10:13 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
@@ -827,8 +830,8 @@
     </div>
 
     <div class="card">
-      <h2>Today's pace</h2>
-      <p class="card-sub" id="paceSub">How today stacks up against a comparable earlier day, hour by hour — all-time data, independent of the date filter above.</p>
+      <h2>Today's pace<span class="pace-live-badge" id="paceLiveBadge">Live</span></h2>
+      <p class="card-sub" id="paceSub">Hour-by-hour running total, so you can catch a slow day early instead of finding out tomorrow. Compare against a preset day or pick any two dates — independent of the date filter above.</p>
       <div class="filter-row" style="margin-bottom:8px;">
         <div class="top-n-toggle" id="paceMetricToggle">
           <button data-metric="funded" class="active">Loans funded</button>
@@ -839,12 +842,20 @@
           <button data-compare="1">Yesterday</button>
           <button data-compare="7" class="active">Last week</button>
           <button data-compare="28">4 weeks ago</button>
+          <button data-compare="custom">Custom…</button>
         </div>
+      </div>
+      <div class="filter-row" id="paceCustomRow" style="display:none; margin-bottom:8px; align-items:center; gap:8px; flex-wrap:wrap;">
+        <label class="hint" for="paceCustomPrimary">Day</label>
+        <input type="date" id="paceCustomPrimary" class="range-select" style="padding:7px 10px;" />
+        <label class="hint" for="paceCustomCompare">vs.</label>
+        <input type="date" id="paceCustomCompare" class="range-select" style="padding:7px 10px;" />
+        <button id="paceCustomApply">Apply</button>
       </div>
       <p class="card-sub" id="paceHeadline" style="margin:0 0 10px; font-weight:600; color:var(--text-primary);"></p>
       <div id="paceChart"></div>
       <div class="pace-legend">
-        <span><span class="swatch" style="background:var(--series-1);"></span>Today</span>
+        <span><span class="swatch" style="background:var(--series-1);"></span><span id="paceTodayLegendLabel">Today</span></span>
         <span><span class="swatch" style="background:var(--series-2);"></span><span id="paceCompareLegendLabel">Comparison day</span></span>
       </div>
       <p class="card-sub" id="paceFootnote" style="margin:10px 0 0;"></p>
@@ -2469,11 +2480,16 @@
     renderTrend();
   });
 
-  // ---------- Today's pace: today vs. an earlier comparable day, hour by hour, all-time (not date-filter-scoped) ----------
+  // ---------- Today's pace: primary day vs. a comparison day (preset or custom), hour by hour, all-time (not date-filter-scoped) ----------
+  // Anchored to the freshest timestamp actually present in the data, not the viewer's wall clock — so a lagging
+  // data pull never gets misread as "activity crashed to zero." The live marker sits exactly at the edge of real data.
   const PACE_METRIC_LABELS = { funded: 'loans funded', posted: 'loan posts made' };
   const PACE_COMPARE_LABELS = { 1: 'yesterday', 7: 'last week', 28: '4 weeks ago' };
   let paceMetric = 'funded';
-  let paceCompareDays = 7;
+  let paceCompareDays = 7; // 1 | 7 | 28 | 'custom'
+  let paceCustomPrimaryStr = '';
+  let paceCustomCompareStr = '';
+  let PACE_LATEST_T = null;
 
   function paceDayStartIST(t) {
     return Math.floor((t + IST_OFFSET) / 86400) * 86400 - IST_OFFSET;
@@ -2494,6 +2510,28 @@
     for (let h = 0; h < 24; h++) { running += hourly[h]; cumulative.push(running); }
     return cumulative;
   }
+  // latest timestamp seen anywhere in the dataset — stands in for "now" so the chart reflects what
+  // the data actually knows about, rather than overshooting into hours that just haven't arrived yet
+  function paceLatestDataT() {
+    if (PACE_LATEST_T != null) return PACE_LATEST_T;
+    let max = 0;
+    RAW.loans.forEach(x => {
+      if (x.t && x.t > max) max = x.t;
+      if (x.pt && x.pt > max) max = x.pt;
+    });
+    PACE_LATEST_T = max || Math.floor(Date.now() / 1000);
+    return PACE_LATEST_T;
+  }
+  // how many hours into `dayStart`'s IST day the data actually reaches; -1 means no data at all yet for that day
+  function paceHourFloorFor(dayStart) {
+    const latest = paceLatestDataT();
+    if (latest < dayStart) return -1;
+    return istDate(Math.min(latest, dayStart + 86399)).getUTCHours();
+  }
+  function paceParseCustomDayStart(dateStr) {
+    if (!dateStr) return null;
+    return paceDayStartIST(Math.floor(new Date(dateStr + 'T12:00:00Z').getTime() / 1000));
+  }
 
   function renderPaceChart() {
     const el = document.getElementById('paceChart');
@@ -2501,30 +2539,53 @@
 
     const field = paceMetric === 'funded' ? 't' : 'pt';
     const metricLabel = PACE_METRIC_LABELS[paceMetric];
-    const compareLabel = PACE_COMPARE_LABELS[paceCompareDays];
-    document.getElementById('paceCompareLegendLabel').textContent = compareLabel.charAt(0).toUpperCase() + compareLabel.slice(1);
+    const metricLabelCap = metricLabel.charAt(0).toUpperCase() + metricLabel.slice(1);
     document.getElementById('paceFootnote').textContent = paceMetric === 'posted'
-      ? "Only counts requests that eventually got funded — asks that never found a lender aren't tracked here."
+      ? "Only counts requests that eventually got funded — asks that never found a lender aren't tracked here. The most recent hour or two of any day will look thin simply because there hasn't been time for those posts to get funded yet."
       : '';
 
-    const now = Date.now() / 1000;
-    const todayStart = paceDayStartIST(now);
-    const compareStart = todayStart - paceCompareDays * 86400;
-    const nowIST = istDate(now);
-    const currentHour = nowIST.getUTCHours() + nowIST.getUTCMinutes() / 60;
-    const currentHourFloor = Math.floor(currentHour);
+    const isCustom = paceCompareDays === 'custom';
+    const liveTodayStart = paceDayStartIST(paceLatestDataT());
+    let primaryDayStart, compareDayStart;
+    if (isCustom && paceCustomPrimaryStr && paceCustomCompareStr) {
+      primaryDayStart = paceParseCustomDayStart(paceCustomPrimaryStr);
+      compareDayStart = paceParseCustomDayStart(paceCustomCompareStr);
+    } else {
+      primaryDayStart = liveTodayStart;
+      compareDayStart = liveTodayStart - (typeof paceCompareDays === 'number' ? paceCompareDays : 7) * 86400;
+    }
 
-    const todayCum = paceCumulativeHourly(RAW.loans, todayStart, field);
-    const compareCum = paceCumulativeHourly(RAW.loans, compareStart, field);
+    const primaryIsLive = primaryDayStart === liveTodayStart;
+    const primaryHourFloor = paceHourFloorFor(primaryDayStart);
+    const compareHourFloor = paceHourFloorFor(compareDayStart);
 
-    const todayNow = todayCum[currentHourFloor] || 0;
-    const compareNow = compareCum[currentHourFloor] || 0;
-    const diff = todayNow - compareNow;
-    const diffStr = compareNow > 0
-      ? `${diff >= 0 ? '+' : ''}${Math.round(diff / compareNow * 100)}%`
-      : (diff !== 0 ? `${diff >= 0 ? '+' : ''}${diff}` : 'even');
-    document.getElementById('paceHeadline').textContent =
-      `As of ${paceHourLabel(currentHourFloor)} IST today, you're at ${todayNow.toLocaleString()} ${metricLabel} — ${compareNow.toLocaleString()} at this point ${compareLabel} (${diffStr}).`;
+    const primaryLabel = primaryIsLive ? 'Today' : fmtDate(primaryDayStart);
+    const compareLabel = isCustom ? fmtDate(compareDayStart) : PACE_COMPARE_LABELS[paceCompareDays].replace(/^./, c => c.toUpperCase());
+    document.getElementById('paceTodayLegendLabel').textContent = primaryLabel;
+    document.getElementById('paceCompareLegendLabel').textContent = compareLabel;
+    document.getElementById('paceLiveBadge').style.display = primaryIsLive ? 'inline-flex' : 'none';
+
+    const todayCum = paceCumulativeHourly(RAW.loans, primaryDayStart, field);
+    const compareCum = paceCumulativeHourly(RAW.loans, compareDayStart, field);
+
+    const headlineEl = document.getElementById('paceHeadline');
+    if (primaryHourFloor < 0 || compareHourFloor < 0) {
+      headlineEl.textContent = primaryHourFloor < 0
+        ? `No ${metricLabel} data yet for ${primaryIsLive ? 'today' : primaryLabel}.`
+        : `No ${metricLabel} data yet for ${compareLabel}.`;
+    } else {
+      const effHour = Math.min(primaryHourFloor, compareHourFloor);
+      const todayNow = todayCum[effHour] || 0;
+      const compareNow = compareCum[effHour] || 0;
+      const diff = todayNow - compareNow;
+      let diffStr;
+      if (diff === 0) diffStr = 'even';
+      else if (compareNow >= 5) diffStr = `${diff >= 0 ? '+' : ''}${Math.round(diff / compareNow * 100)}%`;
+      else diffStr = diff > 0 ? `${diff} more` : `${Math.abs(diff)} fewer`;
+      const throughText = (primaryHourFloor === 23 && compareHourFloor === 23) ? 'By end of day' : `Through ${paceHourLabel(effHour + 1)} IST`;
+      headlineEl.textContent =
+        `${throughText}: ${primaryLabel} — ${todayNow.toLocaleString()} ${metricLabel}, ${compareLabel} — ${compareNow.toLocaleString()} ${metricLabel} (${diffStr}).`;
+    }
 
     const W = el.clientWidth, H = 200, PAD = { l: 40, r: 16, t: 12, b: 28 };
     const maxV = Math.max(1, ...todayCum, ...compareCum);
@@ -2559,39 +2620,33 @@
       svg.appendChild(txt);
     });
 
-    // comparison line: solid through the equivalent "now" hour (directly comparable to today),
-    // then a lighter dashed continuation showing how that whole day actually turned out
-    const matchPath = compareCum.slice(0, currentHourFloor + 1)
-      .map((v, h) => `${h === 0 ? 'M' : 'L'} ${x(h)} ${y(v)}`).join(' ');
-    const compareLine = document.createElementNS(svg.namespaceURI, 'path');
-    compareLine.setAttribute('d', matchPath); compareLine.setAttribute('class', 'pace-line-compare');
-    svg.appendChild(compareLine);
-    if (currentHourFloor < 23) {
-      const restPath = compareCum.slice(currentHourFloor)
-        .map((v, idx) => `${idx === 0 ? 'M' : 'L'} ${x(currentHourFloor + idx)} ${y(v)}`).join(' ');
-      const restLine = document.createElementNS(svg.namespaceURI, 'path');
-      restLine.setAttribute('d', restPath); restLine.setAttribute('class', 'pace-line-compare-rest');
-      svg.appendChild(restLine);
+    // each line is solid through its own real data extent; beyond that (a day still filling in) it's not drawn at all
+    if (compareHourFloor >= 0) {
+      const comparePath = compareCum.slice(0, compareHourFloor + 1)
+        .map((v, h) => `${h === 0 ? 'M' : 'L'} ${x(h)} ${y(v)}`).join(' ');
+      const compareLine = document.createElementNS(svg.namespaceURI, 'path');
+      compareLine.setAttribute('d', comparePath); compareLine.setAttribute('class', 'pace-line-compare');
+      svg.appendChild(compareLine);
     }
 
-    // today: area + line, only up through the current hour (nothing to show past "now")
-    const todaySlice = todayCum.slice(0, currentHourFloor + 1);
-    let areaPath = `M ${x(0)} ${y(0)} `;
-    todaySlice.forEach((v, h) => areaPath += `L ${x(h)} ${y(v)} `);
-    areaPath += `L ${x(currentHourFloor)} ${y(0)} Z`;
-    const area = document.createElementNS(svg.namespaceURI, 'path');
-    area.setAttribute('d', areaPath); area.setAttribute('class', 'pace-area-today');
-    svg.appendChild(area);
-    const todayPath = todaySlice.map((v, h) => `${h === 0 ? 'M' : 'L'} ${x(h)} ${y(v)}`).join(' ');
-    const todayLine = document.createElementNS(svg.namespaceURI, 'path');
-    todayLine.setAttribute('d', todayPath); todayLine.setAttribute('class', 'pace-line-today');
-    svg.appendChild(todayLine);
+    if (primaryHourFloor >= 0) {
+      const todaySlice = todayCum.slice(0, primaryHourFloor + 1);
+      let areaPath = `M ${x(0)} ${y(0)} `;
+      todaySlice.forEach((v, h) => areaPath += `L ${x(h)} ${y(v)} `);
+      areaPath += `L ${x(primaryHourFloor)} ${y(0)} Z`;
+      const area = document.createElementNS(svg.namespaceURI, 'path');
+      area.setAttribute('d', areaPath); area.setAttribute('class', 'pace-area-today');
+      svg.appendChild(area);
+      const todayPath = todaySlice.map((v, h) => `${h === 0 ? 'M' : 'L'} ${x(h)} ${y(v)}`).join(' ');
+      const todayLine = document.createElementNS(svg.namespaceURI, 'path');
+      todayLine.setAttribute('d', todayPath); todayLine.setAttribute('class', 'pace-line-today');
+      svg.appendChild(todayLine);
+    }
 
-    const metricLabelCap = metricLabel.charAt(0).toUpperCase() + metricLabel.slice(1);
     for (let h = 0; h <= 23; h++) {
-      if (h <= currentHourFloor) {
-        const isLive = h === currentHourFloor;
-        if (isLive) {
+      if (h <= primaryHourFloor) {
+        const isLiveEdge = primaryIsLive && h === primaryHourFloor;
+        if (isLiveEdge) {
           const ring = document.createElementNS(svg.namespaceURI, 'circle');
           ring.setAttribute('cx', x(h)); ring.setAttribute('cy', y(todayCum[h])); ring.setAttribute('r', 3.5);
           ring.setAttribute('class', 'pace-live-ring');
@@ -2599,34 +2654,37 @@
         }
         const dot = document.createElementNS(svg.namespaceURI, 'circle');
         dot.setAttribute('cx', x(h)); dot.setAttribute('cy', y(todayCum[h])); dot.setAttribute('r', 3.5);
-        dot.setAttribute('class', isLive ? 'pace-live-dot' : 'pace-dot-today');
+        dot.setAttribute('class', isLiveEdge ? 'pace-live-dot' : 'pace-dot-today');
         svg.appendChild(dot);
         const hit = document.createElementNS(svg.namespaceURI, 'circle');
         hit.setAttribute('cx', x(h)); hit.setAttribute('cy', y(todayCum[h])); hit.setAttribute('r', 12);
         hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
-        hit.addEventListener('pointermove', ev => showTooltip(ev.clientX, ev.clientY, `Today, ${paceHourLabel(h)} IST`, [[metricLabelCap + ' so far', todayCum[h].toLocaleString()]]));
+        hit.addEventListener('pointermove', ev => showTooltip(ev.clientX, ev.clientY, `${primaryLabel}, ${paceHourLabel(h)} IST`, [[metricLabelCap + ' so far', todayCum[h].toLocaleString()]]));
         hit.addEventListener('pointerleave', hideTooltip);
         svg.appendChild(hit);
       }
-      const cdot = document.createElementNS(svg.namespaceURI, 'circle');
-      cdot.setAttribute('cx', x(h)); cdot.setAttribute('cy', y(compareCum[h])); cdot.setAttribute('r', 3);
-      cdot.setAttribute('class', 'pace-dot-compare');
-      svg.appendChild(cdot);
-      const chit = document.createElementNS(svg.namespaceURI, 'circle');
-      chit.setAttribute('cx', x(h)); chit.setAttribute('cy', y(compareCum[h])); chit.setAttribute('r', 12);
-      chit.setAttribute('fill', 'transparent'); chit.style.cursor = 'pointer';
-      const chitLabel = h > currentHourFloor ? `${compareLabel} (full day), ${paceHourLabel(h)} IST` : `${compareLabel}, ${paceHourLabel(h)} IST`;
-      chit.addEventListener('pointermove', ev => showTooltip(ev.clientX, ev.clientY, chitLabel, [[metricLabelCap + ' so far', compareCum[h].toLocaleString()]]));
-      chit.addEventListener('pointerleave', hideTooltip);
-      svg.appendChild(chit);
+      if (h <= compareHourFloor) {
+        const cdot = document.createElementNS(svg.namespaceURI, 'circle');
+        cdot.setAttribute('cx', x(h)); cdot.setAttribute('cy', y(compareCum[h])); cdot.setAttribute('r', 3);
+        cdot.setAttribute('class', 'pace-dot-compare');
+        svg.appendChild(cdot);
+        const chit = document.createElementNS(svg.namespaceURI, 'circle');
+        chit.setAttribute('cx', x(h)); chit.setAttribute('cy', y(compareCum[h])); chit.setAttribute('r', 12);
+        chit.setAttribute('fill', 'transparent'); chit.style.cursor = 'pointer';
+        chit.addEventListener('pointermove', ev => showTooltip(ev.clientX, ev.clientY, `${compareLabel}, ${paceHourLabel(h)} IST`, [[metricLabelCap + ' so far', compareCum[h].toLocaleString()]]));
+        chit.addEventListener('pointerleave', hideTooltip);
+        svg.appendChild(chit);
+      }
     }
 
-    const nowX = x(currentHour);
-    const nowLine = document.createElementNS(svg.namespaceURI, 'line');
-    nowLine.setAttribute('x1', nowX); nowLine.setAttribute('x2', nowX);
-    nowLine.setAttribute('y1', PAD.t); nowLine.setAttribute('y2', H - PAD.b);
-    nowLine.setAttribute('class', 'pace-now-line');
-    svg.appendChild(nowLine);
+    if (primaryIsLive && primaryHourFloor >= 0) {
+      const nowX = x(primaryHourFloor);
+      const nowLine = document.createElementNS(svg.namespaceURI, 'line');
+      nowLine.setAttribute('x1', nowX); nowLine.setAttribute('x2', nowX);
+      nowLine.setAttribute('y1', PAD.t); nowLine.setAttribute('y2', H - PAD.b);
+      nowLine.setAttribute('class', 'pace-now-line');
+      svg.appendChild(nowLine);
+    }
 
     el.innerHTML = '';
     el.appendChild(svg);
@@ -2639,11 +2697,37 @@
     [...document.getElementById('paceMetricToggle').children].forEach(b => b.classList.toggle('active', b === btn));
     renderPaceChart();
   });
+
+  const paceCustomRowEl = document.getElementById('paceCustomRow');
+  const paceCustomPrimaryEl = document.getElementById('paceCustomPrimary');
+  const paceCustomCompareEl = document.getElementById('paceCustomCompare');
+
   document.getElementById('paceCompareToggle').addEventListener('click', ev => {
     const btn = ev.target.closest('button');
     if (!btn) return;
-    paceCompareDays = +btn.dataset.compare;
     [...document.getElementById('paceCompareToggle').children].forEach(b => b.classList.toggle('active', b === btn));
+    if (btn.dataset.compare === 'custom') {
+      paceCompareDays = 'custom';
+      paceCustomRowEl.style.display = 'inline-flex';
+      const minStr = istDate(RAW.range.min_t).toISOString().slice(0, 10);
+      const maxStr = istDate(paceLatestDataT()).toISOString().slice(0, 10);
+      [paceCustomPrimaryEl, paceCustomCompareEl].forEach(input => { input.min = minStr; input.max = maxStr; });
+      if (!paceCustomPrimaryEl.value) paceCustomPrimaryEl.value = maxStr;
+      if (!paceCustomCompareEl.value) {
+        const weekBefore = new Date(paceLatestDataT() * 1000 - 7 * 86400000);
+        paceCustomCompareEl.value = istDate(Math.floor(weekBefore.getTime() / 1000)).toISOString().slice(0, 10);
+      }
+      // wait for Apply so a half-picked pair doesn't flicker the chart
+    } else {
+      paceCompareDays = +btn.dataset.compare;
+      paceCustomRowEl.style.display = 'none';
+      renderPaceChart();
+    }
+  });
+  document.getElementById('paceCustomApply').addEventListener('click', () => {
+    if (!paceCustomPrimaryEl.value || !paceCustomCompareEl.value) return;
+    paceCustomPrimaryStr = paceCustomPrimaryEl.value;
+    paceCustomCompareStr = paceCustomCompareEl.value;
     renderPaceChart();
   });
 
