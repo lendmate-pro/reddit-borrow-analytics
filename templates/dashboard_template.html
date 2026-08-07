@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  .viz-root {
+  :root {
     color-scheme: light;
     --surface-1:      #f2efe7;
     --page-plane:     #eeebe2;
@@ -375,6 +375,30 @@
   }
   #filter-loans-clear:hover { background: var(--series-1-wash); color: var(--text-primary); }
   input[type="number"].range-select::-webkit-inner-spin-button { opacity: 0.6; }
+
+  .export-btn {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .export-btn:hover { background: var(--series-1-wash); color: var(--text-primary); }
+  .export-btn:active { transform: scale(0.97); }
+  .export-btn:disabled { opacity: 0.6; cursor: default; }
+  .chart-download-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+
+  .digest-headline { margin: 0 0 10px; font-weight: 600; color: var(--text-primary); }
+  .digest-list { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; line-height: 1.8; }
+  .digest-list li::marker { color: var(--text-muted); }
 
   svg text { font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
   .bar-label-value { fill: var(--text-primary); font-weight: 600; }
@@ -838,8 +862,15 @@
           <button data-on="1">+ Show projection</button>
         </div>
         <span class="hint" id="projectionHint"></span>
+        <button class="export-btn" id="download-trendChart" type="button" style="margin-left:auto;">⬇ PNG</button>
       </div>
       <div id="trendChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>What changed since yesterday</h2>
+      <p class="card-sub" id="digestSub">Comparing the most recently completed day to the one before it — all-time data, independent of the date filter above.</p>
+      <div id="digestBody"></div>
     </div>
 
     <div class="card">
@@ -870,6 +901,7 @@
       <div class="pace-legend">
         <span><span class="swatch" style="background:var(--series-1);"></span><span id="paceTodayLegendLabel">Today</span></span>
         <span><span class="swatch" style="background:var(--series-2);"></span><span id="paceCompareLegendLabel">Comparison day</span></span>
+        <button class="export-btn" id="download-paceChart" type="button" style="margin-left:auto;">⬇ PNG</button>
       </div>
       <p class="card-sub" id="paceFootnote" style="margin:10px 0 0;"></p>
     </div>
@@ -892,6 +924,7 @@
     <div class="card">
       <h2>When do loans get requested?</h2>
       <p class="card-sub">Loan volume by day of week and hour of day (IST), within the selected date range. Darker = busier.</p>
+      <div class="chart-download-row"><button class="export-btn" id="download-heatmapActivity" type="button">⬇ PNG</button></div>
       <div id="heatmapActivity"></div>
     </div>
 
@@ -945,6 +978,7 @@
           <option value="all">All</option>
         </select>
         <span class="hint" id="count-lenders"></span>
+        <button class="export-btn" id="export-lenders" type="button" style="margin-left:auto;" title="Exports every row matching your current search, not just this page">⬇ Export CSV</button>
       </div>
       <div class="table-scroll">
       <table class="rank-table" id="table-lenders">
@@ -1010,6 +1044,7 @@
           <option value="all">All</option>
         </select>
         <span class="hint" id="count-borrowers"></span>
+        <button class="export-btn" id="export-borrowers" type="button" style="margin-left:auto;" title="Exports every row matching your current search, not just this page">⬇ Export CSV</button>
       </div>
       <div class="table-scroll">
       <table class="rank-table" id="table-borrowers">
@@ -1069,6 +1104,7 @@
           <option value="all">All</option>
         </select>
         <span class="hint" id="count-pairs"></span>
+        <button class="export-btn" id="export-pairs" type="button" style="margin-left:auto;" title="Exports every row matching your current search, not just this page">⬇ Export CSV</button>
       </div>
       <div class="table-scroll">
       <table class="rank-table" id="table-pairs">
@@ -1117,6 +1153,7 @@
         </select>
         <span class="hint" id="count-loans"></span>
         <span class="hint" id="total-loans" style="font-weight:600; color:var(--text-primary);"></span>
+        <button class="export-btn" id="export-loans" type="button" style="margin-left:auto;" title="Exports every row matching your current filters, not just this page">⬇ Export CSV</button>
       </div>
       <div class="table-scroll">
       <table class="rank-table" id="table-loans">
@@ -1161,6 +1198,7 @@
           <option value="all">All</option>
         </select>
         <span class="hint" id="count-unpaid"></span>
+        <button class="export-btn" id="export-unpaid" type="button" style="margin-left:auto;" title="Exports every row matching your current search, not just this page">⬇ Export CSV</button>
       </div>
       <div class="table-scroll">
       <table class="rank-table" id="table-unpaid">
@@ -1210,6 +1248,66 @@
   };
   const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
   const truncateLabel = (text, maxChars) => text.length > maxChars ? text.slice(0, maxChars - 1) + '…' : text;
+
+  // ---------- Export helpers: CSV for tables, PNG for SVG charts ----------
+  function csvCell(v) {
+    const s = String(v ?? '');
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function downloadRowsAsCSV(filenameBase, headers, rows) {
+    const lines = [headers, ...rows].map(cols => cols.map(csvCell).join(',')).join('\r\n');
+    const stamp = istDate(Math.floor(Date.now() / 1000)).toISOString().slice(0, 10);
+    downloadBlob(`${filenameBase}_${stamp}.csv`, new Blob([lines], { type: 'text/csv;charset=utf-8;' }));
+  }
+  // Rasterizes an on-page SVG chart to PNG. Embeds the page's own stylesheet into the cloned SVG so
+  // CSS-class-based styling (colors, strokes) carries over — a raw outerHTML export would render unstyled.
+  function downloadSvgAsPng(containerId, filenameBase) {
+    const container = document.getElementById(containerId);
+    const svg = container && container.querySelector('svg');
+    if (!svg) { alert('Nothing to export yet — try again once the chart has loaded.'); return; }
+    const scale = 2;
+    const w = svg.clientWidth || parseInt(svg.getAttribute('width'), 10) || 800;
+    const h = svg.clientHeight || parseInt(svg.getAttribute('height'), 10) || 400;
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('width', w); clone.setAttribute('height', h);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    // Entrance animations (fadeIn, growBarX, ...) would otherwise restart from their 0%
+    // keyframe in this freshly-loaded standalone image and get rasterized mid-animation —
+    // typically as a blank canvas, since most of them start from opacity/scale 0.
+    clone.removeAttribute('style');
+    clone.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleEl.textContent = document.querySelector('style').textContent + '\n* { animation: none !important; transition: none !important; }';
+    clone.insertBefore(styleEl, clone.firstChild);
+    const xml = new XMLSerializer().serializeToString(clone);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = w * scale; canvas.height = h * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      ctx.fillStyle = getComputedStyle(document.querySelector('.main-panel')).backgroundColor || '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        if (!blob) { alert('Could not generate the image. Try again, or take a screenshot instead.'); return; }
+        const stamp = istDate(Math.floor(Date.now() / 1000)).toISOString().slice(0, 10);
+        downloadBlob(`${filenameBase}_${stamp}.png`, blob);
+      }, 'image/png');
+    };
+    img.onerror = () => alert('Could not generate the image. Try again, or take a screenshot instead.');
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+  }
+  document.querySelectorAll('.export-btn[id^="download-"]').forEach(btn => {
+    btn.addEventListener('click', () => downloadSvgAsPng(btn.id.replace('download-', ''), btn.id.replace('download-', '')));
+  });
 
   // All internal date/time bucketing (heatmap day/hour, day-of-month, trend buckets, "today"/custom-range
   // boundaries) is keyed off IST, not just display labels — IST is a fixed +5:30 offset with no DST, so
@@ -1511,6 +1609,7 @@
     let list = [];
     let pageSize = 50;
     let currentPage = 1;
+    let lastFilteredRows = [];
 
     const barEl = document.getElementById('bar-' + opts.idPrefix);
     const toggleEl = document.getElementById('toggle-' + opts.idPrefix);
@@ -1640,6 +1739,7 @@
         return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
       });
       countEl.textContent = `${rows.length} ${rows.length === 1 ? opts.entityWord : opts.entityWordPlural}`;
+      lastFilteredRows = rows;
 
       const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -1754,6 +1854,18 @@
         renderTable();
       });
     });
+    document.getElementById('export-' + opts.idPrefix)?.addEventListener('click', () => {
+      const headers = [...tableEl.querySelectorAll('thead th')].map(th => {
+        const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
+      });
+      const rows = lastFilteredRows.map(r => [
+        r.name, r.num_loans, fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtPct(r.avg_interest_pct),
+        fmtDays(r.avg_duration_days), fmtPct(r.repaid_rate_pct), r.unique_others, fmtPct(r.repeat_others_pct),
+        r.primary_other_name ? `${r.primary_other_name} (${r.primary_other_count}×, ${fmtPct(r.primary_other_pct)})` : '—',
+        r.active_count, r.overdue_count, fmtPct(r.default_rate), fmtMoney(r.outstanding),
+      ]);
+      downloadRowsAsCSV(opts.idPrefix, headers, rows);
+    });
 
     return {
       render(newList) {
@@ -1784,6 +1896,7 @@
     let list = [];
     let pageSize = 50;
     let currentPage = 1;
+    let lastFilteredRows = [];
 
     const barEl = document.getElementById('bar-pairs');
     const toggleEl = document.getElementById('toggle-pairs');
@@ -1862,6 +1975,7 @@
         return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
       });
       countEl.textContent = `${rows.length} pair${rows.length === 1 ? '' : 's'}`;
+      lastFilteredRows = rows;
 
       const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -1926,6 +2040,16 @@
         renderTable();
       });
     });
+    document.getElementById('export-pairs')?.addEventListener('click', () => {
+      const headers = [...tableEl.querySelectorAll('thead th')].map(th => {
+        const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
+      });
+      const rows = lastFilteredRows.map(r => [
+        r.lender, r.borrower, r.count, fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size),
+        fmtDate(r.first_t), fmtDate(r.last_t), `${r.repaid_count}/${r.count}`,
+      ]);
+      downloadRowsAsCSV('pairs', headers, rows);
+    });
 
     return {
       render(newList) { list = newList; currentPage = 1; renderBars(); renderTable(); },
@@ -1961,6 +2085,7 @@
     let list = [];
     let pageSize = 50;
     let currentPage = 1;
+    let lastFilteredRows = [];
 
     const lenderFilterEl = document.getElementById('filter-loans-lender');
     const borrowerFilterEl = document.getElementById('filter-loans-borrower');
@@ -1997,6 +2122,7 @@
       });
       countEl.textContent = `${rows.length.toLocaleString()} loan${rows.length === 1 ? '' : 's'}`;
       totalEl.textContent = `· ${fmtMoney(rows.reduce((s, x) => s + x.p, 0))} total value`;
+      lastFilteredRows = rows;
 
       const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -2068,6 +2194,17 @@
         currentPage = 1;
         renderTable();
       });
+    });
+    document.getElementById('export-loans')?.addEventListener('click', () => {
+      const headers = [...tableEl.querySelectorAll('thead th')].map(th => {
+        const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
+      });
+      const rows = lastFilteredRows.map(x => [
+        fmtDateTime(x.t), x.l, x.b, fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—',
+        x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No',
+        x.u ? 'https://www.reddit.com/r/borrow/comments/' + x.u + '/' : '—',
+      ]);
+      downloadRowsAsCSV('loans', headers, rows);
     });
 
     return {
@@ -2357,6 +2494,7 @@
     let searchTerm = '';
     let pageSize = 50;
     let currentPage = 1;
+    let lastFilteredRows = [];
     const list = RAW.unpaid;
 
     const searchEl = document.getElementById('search-unpaid');
@@ -2379,6 +2517,7 @@
         return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
       });
       countEl.textContent = `${rows.length.toLocaleString()} loan${rows.length === 1 ? '' : 's'}`;
+      lastFilteredRows = rows;
 
       const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -2442,6 +2581,16 @@
         currentPage = 1;
         renderTable();
       });
+    });
+    document.getElementById('export-unpaid')?.addEventListener('click', () => {
+      const headers = [...tableEl.querySelectorAll('thead th')].map(th => {
+        const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
+      });
+      const rows = lastFilteredRows.map(x => [
+        x.l, x.b, fmtMoney(x.p) + (x.c && x.c !== 'USD' ? ` ${x.c}` : ''), fmtDate(x.t),
+        x.u ? 'https://www.reddit.com/r/borrow/comments/' + x.u + '/' : '—',
+      ]);
+      downloadRowsAsCSV('unpaid_loans', headers, rows);
     });
 
     renderTable();
@@ -2743,6 +2892,98 @@
     paceCustomCompareStr = paceCustomCompareEl.value;
     renderPaceChart();
   });
+
+  // ---------- "What changed since yesterday" digest: most recently completed day vs. the day before it,
+  // all-time (not date-filter-scoped). Reuses Today's Pace's data-anchored "now", so both features agree
+  // on what "today" means even if the hourly pull is lagging. ----------
+  function computeDigest() {
+    const liveTodayStart = paceDayStartIST(paceLatestDataT());
+    const yestStart = liveTodayStart - 86400;
+    const priorStart = liveTodayStart - 2 * 86400;
+    const inDay = (t, start) => t != null && t >= start && t < start + 86400;
+    const yest = RAW.loans.filter(x => inDay(x.t, yestStart));
+    const prior = RAW.loans.filter(x => inDay(x.t, priorStart));
+    const sum = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
+
+    const yestLenders = new Set(yest.map(x => x.l));
+    const priorLenders = new Set(prior.map(x => x.l));
+    const yestBorrowers = new Set(yest.map(x => x.b));
+    const priorBorrowers = new Set(prior.map(x => x.b));
+    const newLenders = [...yestLenders].filter(n => !priorLenders.has(n));
+    const newBorrowers = [...yestBorrowers].filter(n => !priorBorrowers.has(n));
+
+    let biggest = null;
+    yest.forEach(x => { if (!biggest || x.p > biggest.p) biggest = x; });
+
+    return {
+      yestStart, priorStart,
+      yestCount: yest.length, priorCount: prior.length,
+      yestVolume: sum(yest, x => x.p), priorVolume: sum(prior, x => x.p),
+      yestAvg: yest.length ? sum(yest, x => x.p) / yest.length : null,
+      priorAvg: prior.length ? sum(prior, x => x.p) / prior.length : null,
+      newLenders, newBorrowers, biggest,
+    };
+  }
+  function digestDeltaWord(cur, prev) {
+    const diff = cur - prev;
+    if (diff === 0) return 'even with the day before';
+    if (prev >= 5) return `${diff > 0 ? 'up' : 'down'} ${Math.abs(Math.round(diff / prev * 100))}% from the day before`;
+    return `${diff > 0 ? diff + ' more' : Math.abs(diff) + ' fewer'} than the day before`;
+  }
+  function appendNameList(li, names, cap, verb) {
+    li.appendChild(document.createTextNode(`${names.length} new ${verb}${names.length === 1 ? '' : 's'} showed up who weren't active the day before: `));
+    names.slice(0, cap).forEach((name, i) => {
+      if (i > 0) li.appendChild(document.createTextNode(', '));
+      li.appendChild(makeNameLink(name));
+    });
+    if (names.length > cap) li.appendChild(document.createTextNode(`, +${names.length - cap} more`));
+    li.appendChild(document.createTextNode('.'));
+  }
+  function renderDigest() {
+    const d = computeDigest();
+    const body = document.getElementById('digestBody');
+    body.innerHTML = '';
+    document.getElementById('digestSub').textContent =
+      `Comparing ${fmtDate(d.yestStart)} to ${fmtDate(d.priorStart)} — all-time data, independent of the date filter above.`;
+
+    if (d.yestCount === 0 && d.priorCount === 0) {
+      const p = document.createElement('p'); p.className = 'card-sub';
+      p.textContent = 'Not enough recent data yet to compare — check back once a couple of full days have come in.';
+      body.appendChild(p);
+      return;
+    }
+
+    const headline = document.createElement('p'); headline.className = 'digest-headline';
+    headline.textContent = `${fmtDate(d.yestStart)}: ${d.yestCount.toLocaleString()} loans funded (${fmtMoney(d.yestVolume)}), ${digestDeltaWord(d.yestCount, d.priorCount)}.`;
+    body.appendChild(headline);
+
+    const ul = document.createElement('ul'); ul.className = 'digest-list';
+
+    if (d.yestAvg != null && d.priorAvg != null) {
+      const diff = d.yestAvg - d.priorAvg;
+      const dir = diff === 0 ? 'flat vs.' : `${diff > 0 ? 'up' : 'down'} ${fmtMoney(Math.abs(diff))} vs.`;
+      const li = document.createElement('li');
+      li.textContent = `Avg loan size ${fmtMoney(d.yestAvg)}, ${dir} the day before (${fmtMoney(d.priorAvg)}).`;
+      ul.appendChild(li);
+    }
+    if (d.newLenders.length) {
+      const li = document.createElement('li'); appendNameList(li, d.newLenders, 3, 'lender'); ul.appendChild(li);
+    }
+    if (d.newBorrowers.length) {
+      const li = document.createElement('li'); appendNameList(li, d.newBorrowers, 3, 'borrower'); ul.appendChild(li);
+    }
+    if (d.biggest) {
+      const li = document.createElement('li');
+      li.appendChild(document.createTextNode(`Biggest loan: ${fmtMoney(d.biggest.p)} — `));
+      li.appendChild(makeNameLink(d.biggest.l));
+      li.appendChild(document.createTextNode(' funded '));
+      li.appendChild(makeNameLink(d.biggest.b));
+      li.appendChild(document.createTextNode('.'));
+      ul.appendChild(li);
+    }
+    if (ul.children.length) body.appendChild(ul);
+  }
+  renderDigest();
 
   const customControlsEl = document.getElementById('customRangeControls');
   const customFromEl = document.getElementById('customFrom');
