@@ -385,6 +385,13 @@
   .pace-dot-compare { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
   .pace-line-compare-rest { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-dasharray: 4 4; opacity: 0.45; stroke-linecap: round; }
   .pace-now-line { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .pace-live-dot { fill: var(--series-1); animation: pace-blink 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .pace-live-ring { fill: none; stroke: var(--series-1); stroke-width: 2; opacity: 0.55; transform-box: fill-box; transform-origin: center; animation: pace-ring 1.8s ease-out infinite; }
+  @keyframes pace-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @keyframes pace-ring { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(3.2); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .pace-live-dot, .pace-live-ring { animation: none; }
+  }
   .pace-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
   .pace-legend span { display: inline-flex; align-items: center; gap: 6px; }
   .pace-legend .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -2583,9 +2590,16 @@
     const metricLabelCap = metricLabel.charAt(0).toUpperCase() + metricLabel.slice(1);
     for (let h = 0; h <= 23; h++) {
       if (h <= currentHourFloor) {
+        const isLive = h === currentHourFloor;
+        if (isLive) {
+          const ring = document.createElementNS(svg.namespaceURI, 'circle');
+          ring.setAttribute('cx', x(h)); ring.setAttribute('cy', y(todayCum[h])); ring.setAttribute('r', 3.5);
+          ring.setAttribute('class', 'pace-live-ring');
+          svg.appendChild(ring);
+        }
         const dot = document.createElementNS(svg.namespaceURI, 'circle');
         dot.setAttribute('cx', x(h)); dot.setAttribute('cy', y(todayCum[h])); dot.setAttribute('r', 3.5);
-        dot.setAttribute('class', 'pace-dot-today');
+        dot.setAttribute('class', isLive ? 'pace-live-dot' : 'pace-dot-today');
         svg.appendChild(dot);
         const hit = document.createElementNS(svg.namespaceURI, 'circle');
         hit.setAttribute('cx', x(h)); hit.setAttribute('cy', y(todayCum[h])); hit.setAttribute('r', 12);
