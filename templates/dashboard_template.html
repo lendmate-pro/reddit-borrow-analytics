@@ -2,6 +2,15 @@
 <title>r/borrow LIVE Analytics</title>
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#eeebe2">
+<script>
+(function () {
+  try {
+    if (localStorage.getItem('borrowDashboardTheme') === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  } catch (e) {}
+})();
+</script>
 <link rel="icon" type="image/png" href="https://lendmate.pro/images/logo.png">
 <link rel="apple-touch-icon" href="https://lendmate.pro/images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,6 +35,29 @@
     --seq-100: #dfeae3; --seq-200: #b9d6c6; --seq-300: #8fbfa9;
     --seq-400: #5c9986; --seq-450: #3d7a67; --seq-500: #2a6152; --seq-600: #1e4d40;
     --good: #2e7d4f;
+    /* Tooltip stays visually dark regardless of page theme — deliberately not tied to
+       --text-primary/--surface-1, which flip meaning between themes. */
+    --tooltip-bg: #17170f;
+    --tooltip-fg: #f2efe7;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1c1b15;
+    --page-plane:     #121109;
+    --panel:          #201f18;
+    --text-primary:   #f1efe6;
+    --text-secondary: #b4b0a1;
+    --text-muted:     #83806f;
+    --gridline:       #322f24;
+    --baseline:       #45412e;
+    --border:         rgba(241,239,230,0.10);
+    --series-1:       #3fae91;
+    --series-1-wash:  rgba(63,174,145,0.16);
+    --series-2:       #d97a4c;
+    --series-2-wash:  rgba(217,122,76,0.16);
+    --seq-100: #1e2b26; --seq-200: #234339; --seq-300: #2b6152;
+    --seq-400: #34816d; --seq-450: #3fa088; --seq-500: #4ec2a4; --seq-600: #6adcbc;
+    --good: #4fbf7d;
   }
 
   * { box-sizing: border-box; }
@@ -256,6 +288,29 @@
   #logoutBtn:hover { background: var(--series-1-wash); color: var(--text-primary); }
   #logoutBtn:active { transform: scale(0.96); }
 
+  #themeToggleBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease, transform 0.1s ease, background 0.15s ease, color 0.15s ease;
+  }
+  #themeToggleBtn:hover { background: var(--series-1-wash); color: var(--text-primary); }
+  #themeToggleBtn:active { transform: scale(0.96); }
+  #themeToggleBtn .theme-icon { display: inline-flex; }
+  #themeToggleBtn .theme-icon-moon { display: none; }
+  :root[data-theme="dark"] #themeToggleBtn .theme-icon-sun { display: none; }
+  :root[data-theme="dark"] #themeToggleBtn .theme-icon-moon { display: inline-flex; }
+
   .kpi-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -353,7 +408,6 @@
   .filter-row .hint { font-size: 12px; color: var(--text-muted); }
 
   input[type="date"].range-select {
-    color-scheme: light;
     padding: 7px 10px;
     font-weight: 500;
   }
@@ -463,8 +517,8 @@
   .tooltip {
     position: fixed;
     pointer-events: none;
-    background: var(--text-primary);
-    color: var(--surface-1);
+    background: var(--tooltip-bg);
+    color: var(--tooltip-fg);
     font-size: 12px;
     padding: 8px 10px;
     border-radius: 8px;
@@ -698,6 +752,7 @@
     .detail-panel { padding: 14px 14px 16px 20px; }
     #refreshPageBtn .refresh-label { display: none; }
     #logoutBtn .logout-label { display: none; }
+    #themeToggleBtn .theme-label { display: none; }
     .periscope-ask-btn { width: 100%; }
   }
 </style>
@@ -824,6 +879,11 @@
       <div class="dataset-badge" id="datasetBadge"></div>
       <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">__LAST_UPDATED__</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
+      <button id="themeToggleBtn" type="button" title="Switch between light and dark mode">
+        <span class="theme-icon theme-icon-sun" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+        <span class="theme-icon theme-icon-moon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></span>
+        <span class="theme-label">Dark</span>
+      </button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
 
@@ -1247,6 +1307,27 @@
 <script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
 <script>
 (function () {
+  // ---------- Theme: light/dark toggle, persisted, defaults to light ----------
+  (function initThemeToggle() {
+    const btn = document.getElementById('themeToggleBtn');
+    const label = btn.querySelector('.theme-label');
+    const metaColorScheme = document.querySelector('meta[name="color-scheme"]');
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    function apply(theme) {
+      document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+      metaColorScheme.setAttribute('content', theme === 'dark' ? 'dark' : 'light');
+      metaThemeColor.setAttribute('content', theme === 'dark' ? '#121109' : '#eeebe2');
+      label.textContent = theme === 'dark' ? 'Light' : 'Dark';
+      btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+    }
+    apply(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    btn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      apply(next);
+      try { localStorage.setItem('borrowDashboardTheme', next); } catch (e) {}
+    });
+  })();
+
   const RAW = JSON.parse(document.getElementById('dashboard-data').textContent);
   const fmtMoney = n => n == null ? '—' : '$' + Math.round(n).toLocaleString();
   const fmtNum = n => n == null ? '—' : n.toLocaleString();
@@ -1288,6 +1369,12 @@
     const clone = svg.cloneNode(true);
     clone.setAttribute('width', w); clone.setAttribute('height', h);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    // The rasterized SVG is its own standalone document, so the embedded :root[data-theme="dark"]
+    // rule below only matches if the theme attribute is copied onto this document's own root (the
+    // svg element) — otherwise a dark-mode export would silently fall back to the light palette.
+    if (document.documentElement.getAttribute('data-theme') === 'dark') {
+      clone.setAttribute('data-theme', 'dark');
+    }
     // Entrance animations (fadeIn, growBarX, ...) would otherwise restart from their 0%
     // keyframe in this freshly-loaded standalone image and get rasterized mid-animation —
     // typically as a blank canvas, since most of them start from opacity/scale 0.
