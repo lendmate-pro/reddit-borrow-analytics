@@ -464,6 +464,19 @@
   .digest-list { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; line-height: 1.8; }
   .digest-list li::marker { color: var(--text-muted); }
 
+  .target-block { margin-bottom: 16px; }
+  .target-block:last-child { margin-bottom: 0; }
+  .target-block-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
+  .target-block-head .name { font-weight: 600; color: var(--text-primary); }
+  .target-block-head .figure { color: var(--text-secondary); }
+  .target-track { background: var(--page-plane); border-radius: 8px; height: 10px; overflow: hidden; }
+  .target-fill { height: 100%; border-radius: 8px; background: var(--series-1); transition: width 0.4s ease; }
+  .target-fill.behind { background: var(--series-2); }
+  .target-note { font-size: 12px; color: var(--text-muted); margin: 5px 0 0; }
+  .ongoing-status-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .ongoing-status-chip.overdue { background: var(--series-2-wash); color: var(--series-2); }
+  .ongoing-status-chip.upcoming { background: var(--series-1-wash); color: var(--series-1); }
+
   svg text { font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
   .bar-label-value { fill: var(--text-primary); font-weight: 600; }
   .bar-label-name { fill: var(--text-secondary); }
@@ -1300,6 +1313,33 @@
     </div>
 
     <div class="card">
+      <h2>Yesterday, and where you stand on targets</h2>
+      <p class="card-sub" id="portfolioDigestSub">Weekly target: $750 interest (Sunday–Saturday) · Monthly target: $3,000.</p>
+      <div id="portfolioDigestBody"></div>
+    </div>
+
+    <div class="card">
+      <h2>Week by week</h2>
+      <p class="card-sub">Interest earned per week (Sunday–Saturday), against your $750 weekly target. A loan's interest counts toward the week it resolved (paid off, defaulted, or recovered) — not the week it started.</p>
+      <div id="portfolioWeekChart"></div>
+      <div class="table-scroll">
+      <table class="rank-table" id="table-portfolio-weeks">
+        <thead>
+          <tr>
+            <th style="text-align:left">Week</th>
+            <th>Interest earned</th>
+            <th>% of $750 target</th>
+            <th>Loans resolved</th>
+            <th>Loans started</th>
+            <th>Principal out (week end)</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-portfolio-weeks"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>By account</h2>
       <p class="card-sub">Each Reddit account you lend from, verified against your own records.</p>
       <div id="portfolioBar"></div>
@@ -1319,6 +1359,26 @@
           </tr>
         </thead>
         <tbody id="tbody-portfolio"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ongoing loans</h2>
+      <p class="card-sub">Every loan currently out, soonest-due first — this is your real-time "what's outstanding" list.</p>
+      <div class="table-scroll">
+      <table class="rank-table" id="table-portfolio-ongoing">
+        <thead>
+          <tr>
+            <th style="text-align:left">Account</th>
+            <th>Principal</th>
+            <th>Expected repay</th>
+            <th>Started</th>
+            <th>Due</th>
+            <th style="text-align:left">Status</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-portfolio-ongoing"></tbody>
       </table>
       </div>
     </div>
@@ -2637,6 +2697,27 @@
   // RAW.portfolio never contains borrower names — the pipeline strips that at the source. ----------
   const PORTFOLIO_WIN = new Set(['Completed', 'Default Won']);
   const PORTFOLIO_LOSS = new Set(['Defaulted', 'Default Lost']);
+  // Update these two here if the targets ever change — nothing else in the app needs to know about them.
+  const PORTFOLIO_WEEKLY_TARGET = 750;
+  const PORTFOLIO_MONTHLY_TARGET = 3000;
+
+  // Sunday-start-of-week boundary in IST, matching how the rest of the app buckets IST calendar time.
+  function weekStartIST(t) {
+    const dayStart = paceDayStartIST(t);
+    const dow = istDate(dayStart).getUTCDay(); // 0 = Sunday .. 6 = Saturday
+    return dayStart - dow * 86400;
+  }
+  function monthStartIST(t) {
+    const d = istDate(t);
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000) - IST_OFFSET;
+  }
+  function fmtWeekLabel(weekStart) {
+    const start = istDate(weekStart), end = istDate(weekStart + 6 * 86400);
+    const opts = { month: 'short', day: 'numeric', timeZone: 'UTC' };
+    const startStr = new Date(start.getTime()).toLocaleDateString('en-US', opts);
+    const endStr = new Date(end.getTime()).toLocaleDateString('en-US', { ...opts, year: 'numeric' });
+    return `${startStr} – ${endStr}`;
+  }
 
   function computePortfolio() {
     const rows = RAW.portfolio || [];
@@ -2674,8 +2755,9 @@
       loans: t.loans + a.loans, principal: t.principal + a.principal, netReturn: t.netReturn + a.netReturn,
       active: t.active + a.active, won: t.won + a.won, lost: t.lost + a.lost,
     }), { loans: 0, principal: 0, netReturn: 0, active: 0, won: 0, lost: 0 });
-    const activePrincipal = rows.filter(r => !PORTFOLIO_WIN.has(r.status) && !PORTFOLIO_LOSS.has(r.status))
-      .reduce((s, r) => s + (r.principal || 0), 0);
+    const ongoingRows = rows.filter(r => !PORTFOLIO_WIN.has(r.status) && !PORTFOLIO_LOSS.has(r.status));
+    const activePrincipal = ongoingRows.reduce((s, r) => s + (r.principal || 0), 0);
+    const activeExpectedRepay = ongoingRows.reduce((s, r) => s + (r.repay || 0), 0);
     return {
       accounts,
       totalLoans: totals.loans,
@@ -2683,6 +2765,7 @@
       netReturn: totals.netReturn,
       activeLoans: totals.active,
       activePrincipal,
+      activeExpectedRepay,
       accountsUsed: accounts.length,
       defaultRate: (totals.won + totals.lost) ? totals.lost / (totals.won + totals.lost) : null,
     };
@@ -2847,6 +2930,257 @@
     el.appendChild(ul);
   }
 
+  // ---------- Ongoing loans drill-down ----------
+  function computePortfolioOngoing() {
+    const rows = RAW.portfolio || [];
+    const now = paceLatestDataT();
+    return rows.filter(r => !PORTFOLIO_WIN.has(r.status) && !PORTFOLIO_LOSS.has(r.status))
+      .map(r => ({ ...r, daysUntilDue: r.end_t != null ? Math.round((r.end_t - now) / 86400) : null }))
+      .sort((a, b) => (a.end_t ?? Infinity) - (b.end_t ?? Infinity));
+  }
+  function renderPortfolioOngoing() {
+    const tbody = document.getElementById('tbody-portfolio-ongoing');
+    const rows = computePortfolioOngoing();
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 6; td.className = 'card-sub';
+      td.textContent = 'Nothing ongoing right now — every loan has resolved.';
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    rows.forEach(r => {
+      const tr = document.createElement('tr'); tr.style.cursor = 'default';
+      const nameTd = document.createElement('td'); nameTd.className = 'name-cell'; nameTd.textContent = r.lender;
+      tr.appendChild(nameTd);
+      [fmtMoney(r.principal), fmtMoney(r.repay), fmtDate(r.start_t), fmtDate(r.end_t)]
+        .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      const statusTd = document.createElement('td');
+      const chip = document.createElement('span'); chip.className = 'ongoing-status-chip';
+      if (r.daysUntilDue == null) { chip.textContent = 'No due date'; chip.classList.add('upcoming'); }
+      else if (r.daysUntilDue < 0) { chip.textContent = `${Math.abs(r.daysUntilDue)}d overdue`; chip.classList.add('overdue'); }
+      else { chip.textContent = `Due in ${r.daysUntilDue}d`; chip.classList.add('upcoming'); }
+      statusTd.appendChild(chip);
+      tr.appendChild(statusTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- Week-by-week (Sunday–Saturday) interest vs. the $750 weekly target ----------
+  function computePortfolioWeeks() {
+    const rows = RAW.portfolio || [];
+    const startTimes = rows.map(r => r.start_t).filter(t => t != null);
+    if (!startTimes.length) return [];
+    const now = paceLatestDataT();
+    const firstWeek = weekStartIST(Math.min(...startTimes));
+    const lastWeek = weekStartIST(now);
+    const weeks = [];
+    for (let ws = firstWeek; ws <= lastWeek; ws += 7 * 86400) {
+      const weStart = ws, weEnd = ws + 7 * 86400;
+      let interest = 0, resolvedCount = 0, startedCount = 0, principalOut = 0;
+      rows.forEach(r => {
+        if (r.start_t != null && r.start_t >= weStart && r.start_t < weEnd) startedCount += 1;
+        const resolved = PORTFOLIO_WIN.has(r.status) || PORTFOLIO_LOSS.has(r.status);
+        if (resolved && r.end_t != null && r.end_t >= weStart && r.end_t < weEnd) {
+          resolvedCount += 1;
+          interest += PORTFOLIO_WIN.has(r.status) ? (r.repay || 0) - (r.principal || 0) : -(r.principal || 0);
+        }
+        // Outstanding as of this week's close — spans the boundary regardless of current status,
+        // since status only reflects "now" and we're reconstructing a historical snapshot.
+        if (r.start_t != null && r.start_t < weEnd && (r.end_t == null || r.end_t >= weEnd)) {
+          principalOut += r.principal || 0;
+        }
+      });
+      weeks.push({ weekStart: ws, interest, resolvedCount, startedCount, principalOut });
+    }
+    return weeks;
+  }
+  function renderPortfolioWeekChart(weeks) {
+    const el = document.getElementById('portfolioWeekChart');
+    if (!el.clientWidth) return;
+    if (!weeks.length) { el.innerHTML = ''; return; }
+    const W = el.clientWidth, H = 200, PAD = { l: 55, r: 16, t: 12, b: 28 };
+    const maxV = Math.max(PORTFOLIO_WEEKLY_TARGET * 1.15, ...weeks.map(w => w.interest));
+    const minV = Math.min(0, ...weeks.map(w => w.interest));
+    const niceMax = Math.ceil(maxV / 100) * 100;
+    const niceMin = Math.floor(minV / 100) * 100;
+    const range = niceMax - niceMin || 1;
+    const x = i => PAD.l + (i + 0.5) / weeks.length * (W - PAD.l - PAD.r);
+    const barW = Math.max(6, (W - PAD.l - PAD.r) / weeks.length * 0.6);
+    const y = v => H - PAD.b - (v - niceMin) / range * (H - PAD.t - PAD.b);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = niceMin + range * i / ticks;
+      const gy = y(v);
+      const gline = document.createElementNS(svg.namespaceURI, 'line');
+      gline.setAttribute('x1', PAD.l); gline.setAttribute('x2', W - PAD.r);
+      gline.setAttribute('y1', gy); gline.setAttribute('y2', gy);
+      gline.setAttribute('class', 'gridline');
+      svg.appendChild(gline);
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', PAD.l - 8); txt.setAttribute('y', gy + 3);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = '$' + Math.round(v).toLocaleString();
+      svg.appendChild(txt);
+    }
+
+    const targetY = y(PORTFOLIO_WEEKLY_TARGET);
+    const targetLine = document.createElementNS(svg.namespaceURI, 'line');
+    targetLine.setAttribute('x1', PAD.l); targetLine.setAttribute('x2', W - PAD.r);
+    targetLine.setAttribute('y1', targetY); targetLine.setAttribute('y2', targetY);
+    targetLine.setAttribute('class', 'pace-now-line');
+    svg.appendChild(targetLine);
+
+    const labelStride = Math.max(1, Math.ceil(weeks.length / 8));
+    weeks.forEach((w, i) => {
+      const barH = Math.abs(y(0) - y(w.interest));
+      const barY = w.interest >= 0 ? y(w.interest) : y(0);
+      const rect = document.createElementNS(svg.namespaceURI, 'rect');
+      rect.setAttribute('x', x(i) - barW / 2); rect.setAttribute('y', barY);
+      rect.setAttribute('width', barW); rect.setAttribute('height', Math.max(1, barH));
+      rect.setAttribute('rx', 3);
+      rect.setAttribute('class', 'bar-rect ' + (w.interest >= PORTFOLIO_WEEKLY_TARGET ? 'hue-1' : 'hue-2'));
+      svg.appendChild(rect);
+      const hit = document.createElementNS(svg.namespaceURI, 'circle');
+      hit.setAttribute('cx', x(i)); hit.setAttribute('cy', barY + barH / 2); hit.setAttribute('r', Math.max(barW / 2, 10));
+      hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
+      hit.addEventListener('pointermove', ev => {
+        showTooltip(ev.clientX, ev.clientY, fmtWeekLabel(w.weekStart), [
+          ['Interest earned', fmtMoney(w.interest)],
+          ['% of $750 target', fmtPct(w.interest / PORTFOLIO_WEEKLY_TARGET * 100)],
+          ['Loans resolved', w.resolvedCount.toLocaleString()],
+        ]);
+      });
+      hit.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(hit);
+      if (i % labelStride === 0 || i === weeks.length - 1) {
+        const txt = document.createElementNS(svg.namespaceURI, 'text');
+        txt.setAttribute('x', x(i)); txt.setAttribute('y', H - 8);
+        txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '10');
+        txt.textContent = istDate(w.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+        svg.appendChild(txt);
+      }
+    });
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+  }
+  function renderPortfolioWeeksTable(weeks) {
+    const tbody = document.getElementById('tbody-portfolio-weeks');
+    tbody.innerHTML = '';
+    if (!weeks.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 6; td.className = 'card-sub';
+      td.textContent = 'No portfolio data yet.';
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    weeks.slice().reverse().forEach(w => {
+      const tr = document.createElement('tr'); tr.style.cursor = 'default';
+      const weekTd = document.createElement('td'); weekTd.className = 'name-cell'; weekTd.textContent = fmtWeekLabel(w.weekStart);
+      tr.appendChild(weekTd);
+      const interestTd = document.createElement('td'); interestTd.textContent = fmtMoney(w.interest);
+      tr.appendChild(interestTd);
+      const pctTd = document.createElement('td'); pctTd.textContent = fmtPct(w.interest / PORTFOLIO_WEEKLY_TARGET * 100);
+      tr.appendChild(pctTd);
+      [fmtNum(w.resolvedCount), fmtNum(w.startedCount), fmtMoney(w.principalOut)]
+        .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- "Yesterday" digest + weekly/monthly target progress ----------
+  function computePortfolioDigest() {
+    const rows = RAW.portfolio || [];
+    const now = paceLatestDataT();
+    const todayStart = paceDayStartIST(now);
+    const yestStart = todayStart - 86400;
+
+    function resolvedInRange(start, end) {
+      return rows.filter(r => r.end_t != null && r.end_t >= start && r.end_t < end &&
+        (PORTFOLIO_WIN.has(r.status) || PORTFOLIO_LOSS.has(r.status)));
+    }
+    function interestOf(list) {
+      return list.reduce((s, r) => s + (PORTFOLIO_WIN.has(r.status) ? (r.repay || 0) - (r.principal || 0) : -(r.principal || 0)), 0);
+    }
+
+    const yestLoans = resolvedInRange(yestStart, todayStart);
+    const yestInterest = interestOf(yestLoans);
+
+    const curWeekStart = weekStartIST(now);
+    const weekLoans = resolvedInRange(curWeekStart, curWeekStart + 7 * 86400);
+    const weekInterest = interestOf(weekLoans);
+    const daysIntoWeek = Math.min(7, Math.floor((now - curWeekStart) / 86400) + 1);
+
+    const d = istDate(now);
+    const curMonthStart = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000) - IST_OFFSET;
+    const nextMonthStart = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000) - IST_OFFSET;
+    const daysInMonth = Math.round((nextMonthStart - curMonthStart) / 86400);
+    const dayOfMonth = Math.min(daysInMonth, Math.floor((now - curMonthStart) / 86400) + 1);
+    const monthLoans = resolvedInRange(curMonthStart, nextMonthStart);
+    const monthInterest = interestOf(monthLoans);
+
+    const weekPace = daysIntoWeek > 0 ? (weekInterest / daysIntoWeek) * 7 : 0;
+    const monthPace = dayOfMonth > 0 ? (monthInterest / dayOfMonth) * daysInMonth : 0;
+
+    return {
+      yestInterest, yestLoanCount: yestLoans.length,
+      weekInterest, weekTarget: PORTFOLIO_WEEKLY_TARGET, daysIntoWeek, weekPace,
+      monthInterest, monthTarget: PORTFOLIO_MONTHLY_TARGET, dayOfMonth, daysInMonth, monthPace,
+    };
+  }
+  function renderPortfolioDigest() {
+    const el = document.getElementById('portfolioDigestBody');
+    const rows = RAW.portfolio || [];
+    el.innerHTML = '';
+    if (!rows.length) return;
+    const d = computePortfolioDigest();
+
+    const headline = document.createElement('p'); headline.className = 'digest-headline';
+    headline.textContent = d.yestLoanCount > 0
+      ? `Yesterday: ${fmtMoney(d.yestInterest)} interest realized across ${d.yestLoanCount} loan${d.yestLoanCount === 1 ? '' : 's'} that resolved.`
+      : 'Yesterday: no loans resolved, so no interest was realized.';
+    el.appendChild(headline);
+
+    function targetBlock(name, current, target, noteText, behind) {
+      const wrap = document.createElement('div'); wrap.className = 'target-block';
+      const head = document.createElement('div'); head.className = 'target-block-head';
+      const nameEl = document.createElement('span'); nameEl.className = 'name'; nameEl.textContent = name;
+      const figEl = document.createElement('span'); figEl.className = 'figure';
+      const pct = target > 0 ? (current / target * 100) : 0;
+      figEl.textContent = `${fmtMoney(current)} of ${fmtMoney(target)} (${pct.toFixed(0)}%)`;
+      head.appendChild(nameEl); head.appendChild(figEl);
+      wrap.appendChild(head);
+      const track = document.createElement('div'); track.className = 'target-track';
+      const fill = document.createElement('div'); fill.className = 'target-fill' + (behind ? ' behind' : '');
+      fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+      track.appendChild(fill);
+      wrap.appendChild(track);
+      const noteP = document.createElement('p'); noteP.className = 'target-note'; noteP.textContent = noteText;
+      wrap.appendChild(noteP);
+      return wrap;
+    }
+
+    const weekDaysLeft = 7 - d.daysIntoWeek;
+    const weekBehind = d.weekInterest < d.weekTarget;
+    const weekNote = !weekBehind
+      ? `Target hit, with ${weekDaysLeft} day${weekDaysLeft === 1 ? '' : 's'} left in the week.`
+      : `${fmtMoney(d.weekTarget - d.weekInterest)} to go, ${weekDaysLeft} day${weekDaysLeft === 1 ? '' : 's'} left. At this week's pace so far (${fmtMoney(d.weekPace)}/wk), you'd finish ${d.weekPace >= d.weekTarget ? 'on track to hit it' : `about ${fmtMoney(d.weekTarget - d.weekPace)} short`}.`;
+    el.appendChild(targetBlock('This week (Sun–Sat)', d.weekInterest, d.weekTarget, weekNote, weekBehind));
+
+    const monthDaysLeft = d.daysInMonth - d.dayOfMonth;
+    const monthBehind = d.monthInterest < d.monthTarget;
+    const monthNote = !monthBehind
+      ? `Target hit, with ${monthDaysLeft} day${monthDaysLeft === 1 ? '' : 's'} left in the month.`
+      : `${fmtMoney(d.monthTarget - d.monthInterest)} to go, ${monthDaysLeft} day${monthDaysLeft === 1 ? '' : 's'} left. At this month's pace so far (${fmtMoney(d.monthPace)}/mo), you'd finish ${d.monthPace >= d.monthTarget ? 'on track to hit it' : `about ${fmtMoney(d.monthTarget - d.monthPace)} short`}.`;
+    el.appendChild(targetBlock('This month', d.monthInterest, d.monthTarget, monthNote, monthBehind));
+  }
+
   function renderPortfolio() {
     const rows = RAW.portfolio || [];
     const kpiRow = document.getElementById('portfolioKpiRow');
@@ -2854,17 +3188,25 @@
     const insightsEl = document.getElementById('portfolioInsights');
     const trendEl = document.getElementById('portfolioTrendChart');
     const barEl = document.getElementById('portfolioBar');
+    const weekChartEl = document.getElementById('portfolioWeekChart');
+    const weekTbody = document.getElementById('tbody-portfolio-weeks');
+    const ongoingTbody = document.getElementById('tbody-portfolio-ongoing');
+    const digestEl = document.getElementById('portfolioDigestBody');
 
     if (!rows.length) {
       kpiRow.innerHTML = '';
       if (barEl.clientWidth) barEl.innerHTML = '';
       if (trendEl.clientWidth) trendEl.innerHTML = '';
+      if (weekChartEl.clientWidth) weekChartEl.innerHTML = '';
       tbody.innerHTML = '';
       const tr = document.createElement('tr');
       const td = document.createElement('td'); td.colSpan = 9; td.className = 'card-sub';
       td.textContent = 'No portfolio data yet — check back after the next hourly refresh.';
       tr.appendChild(td); tbody.appendChild(tr);
+      weekTbody.innerHTML = '';
+      ongoingTbody.innerHTML = '';
       insightsEl.innerHTML = '';
+      digestEl.innerHTML = '';
       return;
     }
 
@@ -2874,8 +3216,9 @@
       { label: 'Total loans', raw: p.totalLoans, fmt: fmtNum },
       { label: 'Total principal lent', raw: p.totalPrincipal, fmt: fmtMoney },
       { label: 'Net return (realized)', raw: p.netReturn, fmt: fmtMoney },
-      { label: 'Capital currently active', raw: p.activePrincipal, fmt: fmtMoney },
-      { label: 'Active loans', raw: p.activeLoans, fmt: fmtNum },
+      { label: 'Principal out (right now)', raw: p.activePrincipal, fmt: fmtMoney },
+      { label: 'Amount out (incl. interest)', raw: p.activeExpectedRepay, fmt: fmtMoney },
+      { label: 'Ongoing loans', raw: p.activeLoans, fmt: fmtNum },
       { label: 'Default rate', raw: p.defaultRate == null ? null : p.defaultRate * 100, fmt: v => v == null ? '—' : fmtPct(v) },
       { label: 'Accounts used', raw: p.accountsUsed, fmt: fmtNum },
     ];
@@ -2915,6 +3258,11 @@
       renderPortfolioTrendChart(buildTrend(trendLoans, minT, maxT));
     }
 
+    renderPortfolioDigest();
+    const weeks = computePortfolioWeeks();
+    renderPortfolioWeekChart(weeks);
+    renderPortfolioWeeksTable(weeks);
+    renderPortfolioOngoing();
     renderPortfolioInsights(p);
   }
 
