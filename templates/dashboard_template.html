@@ -311,26 +311,6 @@
   :root[data-theme="dark"] #themeToggleBtn .theme-icon-sun { display: none; }
   :root[data-theme="dark"] #themeToggleBtn .theme-icon-moon { display: inline-flex; }
 
-  #tzToggleBtn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin-left: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 14px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: filter 0.15s ease, transform 0.1s ease, background 0.15s ease, color 0.15s ease;
-  }
-  #tzToggleBtn:hover { background: var(--series-1-wash); color: var(--text-primary); }
-  #tzToggleBtn:active { transform: scale(0.96); }
-  #tzToggleBtn .tz-icon { display: inline-flex; }
-
   .kpi-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -786,7 +766,6 @@
     #refreshPageBtn .refresh-label { display: none; }
     #logoutBtn .logout-label { display: none; }
     #themeToggleBtn .theme-label { display: none; }
-    #tzToggleBtn .tz-label { display: none; }
     .periscope-ask-btn { width: 100%; }
   }
 </style>
@@ -917,10 +896,6 @@
         <span class="theme-icon theme-icon-sun" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
         <span class="theme-icon theme-icon-moon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></span>
         <span class="theme-label">Dark</span>
-      </button>
-      <button id="tzToggleBtn" type="button">
-        <span class="tz-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-        <span class="tz-label">Show EDT</span>
       </button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
@@ -1462,55 +1437,6 @@
     });
   })();
 
-  // ---------- Timezone: IST stays canonical for all day/week bucketing everywhere in this app —
-  // that never changes. This only controls how a specific instant (a loan's exact funded time, a
-  // "First loan" date, etc.) is *displayed* to whoever's currently looking. Auto-detected from the
-  // browser's own timezone on first visit (no action needed for a US-based viewer), then remembered
-  // per-browser from then on. Falls back to IST whenever detection is unavailable or ambiguous.
-  const TZ_ZONES = { ist: 'Asia/Kolkata', eastern: 'America/New_York' };
-  function detectDefaultTZMode() {
-    try {
-      if (Intl.DateTimeFormat().resolvedOptions().timeZone === 'America/New_York') return 'eastern';
-    } catch (e) {}
-    return 'ist';
-  }
-  let tzMode = 'ist';
-  try {
-    const stored = localStorage.getItem('borrowDashboardTZ');
-    tzMode = (stored === 'ist' || stored === 'eastern') ? stored : detectDefaultTZMode();
-  } catch (e) {
-    tzMode = detectDefaultTZMode();
-  }
-  function tzZoneName() { return TZ_ZONES[tzMode]; }
-  // IST is always labeled "IST" (unambiguous, no DST). Eastern needs a per-timestamp lookup since
-  // it flips between EDT and EST depending on the date of the specific instant being shown.
-  function tzAbbrev(t) {
-    if (tzMode === 'ist') return 'IST';
-    try {
-      const parts = new Intl.DateTimeFormat('en-US', { timeZone: TZ_ZONES.eastern, timeZoneName: 'short' })
-        .formatToParts(new Date((t == null ? Date.now() / 1000 : t) * 1000));
-      const p = parts.find(x => x.type === 'timeZoneName');
-      return p ? p.value : 'ET';
-    } catch (e) { return 'ET'; }
-  }
-  (function initTimezoneToggle() {
-    const btn = document.getElementById('tzToggleBtn');
-    if (!btn) return;
-    const label = btn.querySelector('.tz-label');
-    label.textContent = tzMode === 'ist' ? 'Show EDT' : 'Show IST';
-    btn.setAttribute('aria-pressed', tzMode === 'eastern' ? 'true' : 'false');
-    btn.title = tzMode === 'ist'
-      ? 'Dates and times are shown in IST — click to switch to US Eastern on this browser'
-      : 'Dates and times are shown in US Eastern — click to switch back to IST on this browser';
-    // A full reload keeps this simple and guaranteed-correct: every table, tooltip, and card that
-    // formats a timestamp re-renders from scratch in the new zone, with nothing left stale anywhere.
-    btn.addEventListener('click', () => {
-      const next = tzMode === 'ist' ? 'eastern' : 'ist';
-      try { localStorage.setItem('borrowDashboardTZ', next); } catch (e) {}
-      location.reload();
-    });
-  })();
-
   const RAW = JSON.parse(document.getElementById('dashboard-data').textContent);
   const fmtMoney = n => n == null ? '—' : '$' + Math.round(n).toLocaleString();
   const fmtNum = n => n == null ? '—' : n.toLocaleString();
@@ -1518,7 +1444,7 @@
   const fmtDays = n => n == null ? '—' : n.toFixed(1);
   const fmtDate = t => {
     if (t == null) return '—';
-    return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: tzZoneName() });
+    return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' });
   };
   const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
   const truncateLabel = (text, maxChars) => text.length > maxChars ? text.slice(0, maxChars - 1) + '…' : text;
@@ -2382,8 +2308,8 @@
     const fmtDateTime = t => {
       if (t == null) return '—';
       return new Date(t * 1000).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tzZoneName(),
-      }) + ' ' + tzAbbrev(t);
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+      }) + ' IST';
     };
 
     function renderTable() {
@@ -4411,8 +4337,8 @@
     const fmtDateTime = t => {
       if (t == null) return '—';
       return new Date(t * 1000).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tzZoneName(),
-      }) + ' ' + tzAbbrev(t);
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+      }) + ' IST';
     };
 
     const card = document.createElement('div'); card.className = 'card';
