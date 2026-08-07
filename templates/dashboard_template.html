@@ -2423,7 +2423,7 @@
 
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let loans = [];
-    let claudeInsights = null;
+    let dailyInsights = null;
 
     function relativeTime(iso) {
       const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -2579,8 +2579,8 @@
     }
 
     function randomPoolAnswer() {
-      if (claudeInsights && claudeInsights.insights.length) {
-        return claudeInsights.insights[Math.floor(Math.random() * claudeInsights.insights.length)];
+      if (dailyInsights && dailyInsights.insights.length) {
+        return dailyInsights.insights[Math.floor(Math.random() * dailyInsights.insights.length)];
       }
       const pool = buildPool();
       if (!pool.length) return null;
@@ -2588,8 +2588,8 @@
     }
 
     function defaultReveal() {
-      if (claudeInsights) {
-        return { title: "Today's headline", body: claudeInsights.headline };
+      if (dailyInsights) {
+        return { title: "Today's headline", body: dailyInsights.headline };
       }
       return randomPoolAnswer();
     }
@@ -2627,8 +2627,8 @@
     }
 
     function updateFeedSub() {
-      feedSubEl.textContent = claudeInsights && claudeInsights.insights.length
-        ? `Claude's daily read on the data — generated ${relativeTime(claudeInsights.generated_at)}.`
+      feedSubEl.textContent = dailyInsights && dailyInsights.insights.length
+        ? `Claude's daily read on the data — generated ${relativeTime(dailyInsights.generated_at)}.`
         : 'Claude\'s daily read on the data, refreshed every morning.';
     }
 
@@ -2653,7 +2653,7 @@
     fetch('./periscope_insights.json', { cache: 'no-store' })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
-        if (data && Array.isArray(data.insights) && data.insights.length) claudeInsights = data;
+        if (data && Array.isArray(data.insights) && data.insights.length) dailyInsights = data;
         if (currentAgg) refresh();
       })
       .catch(() => {});
