@@ -329,11 +329,18 @@ def build_unpaid_list():
     return out
 
 
+# "My Portfolio" is disabled for now — flip to True to resume publishing it. While disabled, no
+# NocoDB request is made and the public dashboard JSON gets an empty "portfolio" list.
+PORTFOLIO_ENABLED = False
+
+
 def fetch_portfolio_loans():
     """Pull the user's personal lending portfolio from their NocoDB tracker. Only ever requests/keeps
     the fields in NOCODB_FIELDS — the source table also has a linked borrower record with the
     borrower's real name, which must never reach the public dashboard.
     """
+    if not PORTFOLIO_ENABLED:
+        return []
     token = os.environ.get("NOCODB_API_TOKEN")
     if not token:
         print("  NOCODB_API_TOKEN not set — skipping portfolio fetch.", flush=True)

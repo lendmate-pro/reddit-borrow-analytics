@@ -908,7 +908,8 @@
       <a href="#pairs" data-page="pairs">Pairs</a>
       <a href="#loans" data-page="loans">Loans</a>
       <a href="#defaults" data-page="defaults">Defaults</a>
-      <a href="#portfolio" data-page="portfolio">My Portfolio</a>
+      <!-- "My Portfolio" nav link disabled for now — see PORTFOLIO_ENABLED in hourly_update.py and
+           the currentPageFromHash() guard below. Restore this <a> to bring the tab back. -->
     </nav>
 
     <div class="card date-filter-card">
@@ -4512,9 +4513,13 @@
   const navLinks = [...document.querySelectorAll('.quick-nav a')];
   const visitedPages = new Set();
 
+  // "My Portfolio" is disabled for now — even a bookmarked/typed #portfolio link falls back to
+  // Overview instead of rendering it. Remove 'portfolio' from this list to bring the tab back.
+  const DISABLED_PAGES = ['portfolio'];
   function currentPageFromHash() {
     const raw = (location.hash || '').replace(/^#/, '');
     if (raw.startsWith('profile/')) return 'profile';
+    if (DISABLED_PAGES.includes(raw)) return 'overview';
     return PAGES.includes(raw) ? raw : 'overview';
   }
 
