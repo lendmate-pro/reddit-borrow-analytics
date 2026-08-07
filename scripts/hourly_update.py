@@ -1,8 +1,10 @@
 import json
+import os
 import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 import urllib.parse
 from collections import defaultdict
@@ -31,6 +33,12 @@ AUTH_HASH_PATH = CONFIG / "auth_hash.txt"
 
 BASE_COMMENTS = "https://arctic-shift.photon-reddit.com/api/comments/search"
 BASE_POSTS = "https://arctic-shift.photon-reddit.com/api/posts/ids"
+
+NOCODB_BASE_URL = "https://noco.lendmate.pro"
+NOCODB_TABLE_ID = "m9h75iwh6ausebz"
+# Only these fields are ever requested or forwarded to the public dashboard — the table also has a
+# linked "borrower" record with the borrower's real name, which must never reach the public site.
+NOCODB_FIELDS = "Lender,loan_status,principle_amount,total_repay_amount,loan_start_date,loan_end_date,url,Payments"
 UA = "Mozilla/5.0 (research; contact jyoth.antony@gmail.com)"
 
 CREATE_RE = re.compile(
@@ -321,6 +329,57 @@ def build_unpaid_list():
     return out
 
 
+def fetch_portfolio_loans():
+    """Pull the user's personal lending portfolio from their NocoDB tracker. Only ever requests/keeps
+    the fields in NOCODB_FIELDS — the source table also has a linked borrower record with the
+    borrower's real name, which must never reach the public dashboard.
+    """
+    token = os.environ.get("NOCODB_API_TOKEN")
+    if not token:
+        print("  NOCODB_API_TOKEN not set — skipping portfolio fetch.", flush=True)
+        return []
+
+    allowed_fields = set(NOCODB_FIELDS.split(","))
+    rows = []
+    offset = 0
+    limit = 200
+    while True:
+        qs = urllib.parse.urlencode({"limit": limit, "offset": offset, "fields": NOCODB_FIELDS})
+        url = f"{NOCODB_BASE_URL}/api/v2/tables/{NOCODB_TABLE_ID}/records?{qs}"
+        req = urllib.request.Request(url, headers={"xc-token": token, "User-Agent": UA})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                page = json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.URLError, urllib.error.HTTPError) as e:
+            print(f"  NocoDB fetch failed, skipping portfolio update this run: {e}", flush=True)
+            return []
+
+        for r in page.get("list", []):
+            rows.append({k: v for k, v in r.items() if k in allowed_fields})
+
+        page_info = page.get("pageInfo", {})
+        if page_info.get("isLastPage", True) or not page.get("list"):
+            break
+        offset += limit
+
+    compact = []
+    for r in rows:
+        start = parse_date_str(r.get("loan_start_date")) if r.get("loan_start_date") else None
+        end = parse_date_str(r.get("loan_end_date")) if r.get("loan_end_date") else None
+        url_val = r.get("url") or ""
+        compact.append({
+            "lender": r.get("Lender") or "Independent",
+            "status": r.get("loan_status"),
+            "principal": r.get("principle_amount"),
+            "repay": r.get("total_repay_amount"),
+            "start_t": int(start.timestamp()) if start else None,
+            "end_t": int(end.timestamp()) if end else None,
+            "payments": r.get("Payments"),
+            "url": url_val if url_val.startswith("http") else None,
+        })
+    return compact
+
+
 def build_dashboard_data(loans):
     compact = [{"l": l["lender"], "b": l["borrower"], "p": l["principal"], "f": l["fee_pct"],
                 "d": l["duration_days"], "r": 1 if l["is_repaid"] else 0, "t": l["created_utc"],
@@ -329,6 +388,7 @@ def build_dashboard_data(loans):
         "loans": compact,
         "range": {"min_t": min(c["t"] for c in compact), "max_t": max(c["t"] for c in compact)},
         "unpaid": build_unpaid_list(),
+        "portfolio": fetch_portfolio_loans(),
     }
     data_str = json.dumps(out, separators=(",", ":"))
     DASHBOARD_DATA_PATH.write_text(data_str)

@@ -28,6 +28,8 @@ jobs:
 
       - name: Run pipeline
         run: python3 scripts/hourly_update.py
+        env:
+          NOCODB_API_TOKEN: ${{ secrets.NOCODB_API_TOKEN }}
 
       - name: Commit and push if changed
         run: |

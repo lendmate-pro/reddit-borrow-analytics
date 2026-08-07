@@ -895,6 +895,7 @@
       <a href="#pairs" data-page="pairs">Pairs</a>
       <a href="#loans" data-page="loans">Loans</a>
       <a href="#defaults" data-page="defaults">Defaults</a>
+      <a href="#portfolio" data-page="portfolio">My Portfolio</a>
     </nav>
 
     <div class="card date-filter-card">
@@ -1285,6 +1286,53 @@
       </table>
       </div>
       <div class="pagination-row" id="pagination-unpaid"></div>
+    </div>
+
+    </section>
+
+    <section class="page-section" data-page="portfolio">
+    <div class="section-heading" id="section-portfolio">My Portfolio</div>
+
+    <div class="card">
+      <h2>Combined, across your lending accounts</h2>
+      <p class="card-sub">Pulled from your personal loan tracker, refreshed hourly — all-time, independent of the date filter above. Borrower details are never included here, only lender-side totals.</p>
+      <div class="kpi-row" id="portfolioKpiRow"></div>
+    </div>
+
+    <div class="card">
+      <h2>By account</h2>
+      <p class="card-sub">Each Reddit account you lend from, verified against your own records.</p>
+      <div id="portfolioBar"></div>
+      <div class="table-scroll">
+      <table class="rank-table" id="table-portfolio">
+        <thead>
+          <tr>
+            <th style="text-align:left">Account</th>
+            <th>Loans</th>
+            <th>Principal lent</th>
+            <th>Net return</th>
+            <th>Active now</th>
+            <th>Default rate</th>
+            <th>Avg loan</th>
+            <th>First loan</th>
+            <th>Last loan</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-portfolio"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Growth over time</h2>
+      <p class="card-sub" id="portfolioTrendSub">Principal lent per month, all accounts combined.</p>
+      <div id="portfolioTrendChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Growth insights</h2>
+      <p class="card-sub">A few things worth noticing about your portfolio.</p>
+      <div id="portfolioInsights"></div>
     </div>
 
     </section>
@@ -2585,6 +2633,291 @@
   }
   renderDefaultsKpis();
 
+  // ---------- My Portfolio: personal lending accounts pulled from NocoDB, all-time, lender-side only.
+  // RAW.portfolio never contains borrower names — the pipeline strips that at the source. ----------
+  const PORTFOLIO_WIN = new Set(['Completed', 'Default Won']);
+  const PORTFOLIO_LOSS = new Set(['Defaulted', 'Default Lost']);
+
+  function computePortfolio() {
+    const rows = RAW.portfolio || [];
+    const byAccount = new Map();
+    function acct(name) {
+      if (!byAccount.has(name)) {
+        byAccount.set(name, { name, loans: 0, principal: 0, netReturn: 0, active: 0, won: 0, lost: 0, firstT: null, lastT: null });
+      }
+      return byAccount.get(name);
+    }
+    rows.forEach(r => {
+      const a = acct(r.lender);
+      a.loans += 1;
+      a.principal += r.principal || 0;
+      if (PORTFOLIO_WIN.has(r.status)) {
+        a.netReturn += (r.repay || 0) - (r.principal || 0);
+        a.won += 1;
+      } else if (PORTFOLIO_LOSS.has(r.status)) {
+        a.netReturn -= (r.principal || 0);
+        a.lost += 1;
+      } else {
+        a.active += 1;
+      }
+      if (r.start_t != null) {
+        if (a.firstT == null || r.start_t < a.firstT) a.firstT = r.start_t;
+        if (a.lastT == null || r.start_t > a.lastT) a.lastT = r.start_t;
+      }
+    });
+    const accounts = [...byAccount.values()].map(a => ({
+      ...a,
+      avgLoan: a.loans ? a.principal / a.loans : 0,
+      defaultRate: (a.won + a.lost) ? a.lost / (a.won + a.lost) : null,
+    }));
+    const totals = accounts.reduce((t, a) => ({
+      loans: t.loans + a.loans, principal: t.principal + a.principal, netReturn: t.netReturn + a.netReturn,
+      active: t.active + a.active, won: t.won + a.won, lost: t.lost + a.lost,
+    }), { loans: 0, principal: 0, netReturn: 0, active: 0, won: 0, lost: 0 });
+    const activePrincipal = rows.filter(r => !PORTFOLIO_WIN.has(r.status) && !PORTFOLIO_LOSS.has(r.status))
+      .reduce((s, r) => s + (r.principal || 0), 0);
+    return {
+      accounts,
+      totalLoans: totals.loans,
+      totalPrincipal: totals.principal,
+      netReturn: totals.netReturn,
+      activeLoans: totals.active,
+      activePrincipal,
+      accountsUsed: accounts.length,
+      defaultRate: (totals.won + totals.lost) ? totals.lost / (totals.won + totals.lost) : null,
+    };
+  }
+
+  function renderPortfolioBar(sorted) {
+    const barEl = document.getElementById('portfolioBar');
+    if (!barEl.clientWidth) return;
+    const W = barEl.clientWidth;
+    const rowH = 30, labelW = W < 480 ? 110 : W < 700 ? 150 : 190, PAD = { t: 4, r: 60, b: 4 };
+    const H = Math.max(1, sorted.length) * rowH + PAD.t + PAD.b;
+    const maxV = Math.max(1, sorted[0] ? sorted[0].principal : 0);
+    const barMaxW = W - labelW - PAD.r;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    sorted.forEach((d, i) => {
+      const cy = PAD.t + i * rowH;
+      const barW = Math.max(2, (d.principal / maxV) * barMaxW);
+      const nameTxt = document.createElementNS(svg.namespaceURI, 'text');
+      nameTxt.setAttribute('x', labelW - 10); nameTxt.setAttribute('y', cy + rowH / 2 + 4);
+      nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
+      nameTxt.setAttribute('class', 'bar-label-name');
+      nameTxt.textContent = truncateLabel(d.name, Math.max(6, Math.floor(labelW / 7)));
+      svg.appendChild(nameTxt);
+      const rect = document.createElementNS(svg.namespaceURI, 'rect');
+      rect.setAttribute('x', labelW); rect.setAttribute('y', cy + (rowH - 18) / 2);
+      rect.setAttribute('width', barW); rect.setAttribute('height', 18);
+      rect.setAttribute('rx', 4);
+      rect.setAttribute('class', 'bar-rect hue-1');
+      rect.style.animation = `growBarX 0.4s ease both ${Math.min(i * 25, 300)}ms`;
+      rect.addEventListener('pointermove', ev => {
+        showTooltip(ev.clientX, ev.clientY, d.name, [
+          ['Loans', d.loans.toLocaleString()],
+          ['Principal lent', fmtMoney(d.principal)],
+          ['Net return', fmtMoney(d.netReturn)],
+          ['Active now', d.active.toLocaleString()],
+        ]);
+      });
+      rect.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(rect);
+      const valTxt = document.createElementNS(svg.namespaceURI, 'text');
+      valTxt.setAttribute('x', labelW + barW + 8); valTxt.setAttribute('y', cy + rowH / 2 + 4);
+      valTxt.setAttribute('font-size', '12.5'); valTxt.setAttribute('class', 'bar-label-value');
+      valTxt.textContent = fmtMoney(d.principal);
+      svg.appendChild(valTxt);
+    });
+    barEl.innerHTML = '';
+    barEl.appendChild(svg);
+  }
+
+  function renderPortfolioTrendChart(data) {
+    const el = document.getElementById('portfolioTrendChart');
+    if (!el.clientWidth) return;
+    if (!data.length) { el.innerHTML = ''; return; }
+    const W = el.clientWidth, H = 200, PAD = { l: 55, r: 16, t: 12, b: 28 };
+    const maxV = Math.max(1, ...data.map(d => d.dollars));
+    const niceMax = Math.ceil(maxV / 500) * 500 || maxV + 1;
+    const x = i => PAD.l + (i / Math.max(1, data.length - 1)) * (W - PAD.l - PAD.r);
+    const y = v => H - PAD.b - (v / niceMax) * (H - PAD.t - PAD.b);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = Math.round(niceMax * i / ticks);
+      const gy = y(v);
+      const gline = document.createElementNS(svg.namespaceURI, 'line');
+      gline.setAttribute('x1', PAD.l); gline.setAttribute('x2', W - PAD.r);
+      gline.setAttribute('y1', gy); gline.setAttribute('y2', gy);
+      gline.setAttribute('class', 'gridline');
+      svg.appendChild(gline);
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', PAD.l - 8); txt.setAttribute('y', gy + 3);
+      txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = '$' + v.toLocaleString();
+      svg.appendChild(txt);
+    }
+    const labelStride = Math.ceil(data.length / 12);
+    data.forEach((d, i) => {
+      if (i % labelStride !== 0 && i !== data.length - 1) return;
+      const txt = document.createElementNS(svg.namespaceURI, 'text');
+      txt.setAttribute('x', x(i)); txt.setAttribute('y', H - 8);
+      txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '10.5');
+      txt.textContent = d.label;
+      svg.appendChild(txt);
+    });
+
+    let areaPath = `M ${x(0)} ${y(0)} `;
+    data.forEach((d, i) => areaPath += `L ${x(i)} ${y(d.dollars)} `);
+    areaPath += `L ${x(data.length - 1)} ${y(0)} Z`;
+    const area = document.createElementNS(svg.namespaceURI, 'path');
+    area.setAttribute('d', areaPath); area.setAttribute('class', 'trend-area');
+    svg.appendChild(area);
+
+    let linePath = '';
+    data.forEach((d, i) => { linePath += (i === 0 ? 'M' : 'L') + ` ${x(i)} ${y(d.dollars)} `; });
+    const line = document.createElementNS(svg.namespaceURI, 'path');
+    line.setAttribute('d', linePath); line.setAttribute('class', 'trend-line');
+    svg.appendChild(line);
+
+    data.forEach((d, i) => {
+      const dot = document.createElementNS(svg.namespaceURI, 'circle');
+      dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(d.dollars)); dot.setAttribute('r', 4);
+      dot.setAttribute('class', 'trend-dot');
+      svg.appendChild(dot);
+      const hit = document.createElementNS(svg.namespaceURI, 'circle');
+      hit.setAttribute('cx', x(i)); hit.setAttribute('cy', y(d.dollars)); hit.setAttribute('r', 14);
+      hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
+      hit.addEventListener('pointermove', ev => {
+        showTooltip(ev.clientX, ev.clientY, d.label, [
+          ['Loans made', d.loans.toLocaleString()],
+          ['Principal lent', fmtMoney(d.dollars)],
+        ]);
+      });
+      hit.addEventListener('pointerleave', hideTooltip);
+      svg.appendChild(hit);
+    });
+
+    el.innerHTML = '';
+    el.appendChild(svg);
+  }
+
+  function renderPortfolioInsights(p) {
+    const el = document.getElementById('portfolioInsights');
+    el.innerHTML = '';
+    if (!p.accounts.length) return;
+    const items = [];
+
+    const byPrincipal = p.accounts.slice().sort((a, b) => b.principal - a.principal);
+    const top = byPrincipal[0];
+    if (top && p.totalPrincipal > 0) {
+      const share = top.principal / p.totalPrincipal * 100;
+      let line = `${top.name} carries the most capital — ${fmtMoney(top.principal)} (${share.toFixed(0)}% of everything you've lent across all accounts).`;
+      if (share > 50) line += ' That\'s a lot riding on one account — spreading new loans across the others would reduce how much is exposed if that one account runs into trouble.';
+      items.push(line);
+    }
+
+    const resolved = p.accounts.filter(a => (a.won + a.lost) >= 3);
+    if (resolved.length) {
+      const byReturnPct = resolved.slice().sort((a, b) => (b.netReturn / Math.max(1, b.principal)) - (a.netReturn / Math.max(1, a.principal)));
+      const best = byReturnPct[0];
+      const bestPct = best.principal ? (best.netReturn / best.principal * 100) : 0;
+      items.push(`${best.name} has the best return so far: ${fmtMoney(best.netReturn)} net on ${fmtMoney(best.principal)} lent (${bestPct >= 0 ? '+' : ''}${bestPct.toFixed(1)}%). Worth funding more through this account if the pattern holds.`);
+
+      const riskiest = resolved.slice().sort((a, b) => (b.defaultRate || 0) - (a.defaultRate || 0))[0];
+      if (riskiest.defaultRate > 0) {
+        items.push(`${riskiest.name} has your highest default rate (${fmtPct(riskiest.defaultRate * 100)}) — worth a closer look at who you're lending to through it before scaling it up further.`);
+      }
+    } else {
+      items.push('Not enough resolved loans yet on any single account to compare returns — check back as more of your active loans wrap up.');
+    }
+
+    if (p.activePrincipal > 0) {
+      items.push(`${fmtMoney(p.activePrincipal)} is currently tied up in ${p.activeLoans} active loan${p.activeLoans === 1 ? '' : 's'} — capital you can't redeploy until it comes back.`);
+    }
+
+    const ul = document.createElement('ul'); ul.className = 'digest-list';
+    items.forEach(text => { const li = document.createElement('li'); li.textContent = text; ul.appendChild(li); });
+    el.appendChild(ul);
+  }
+
+  function renderPortfolio() {
+    const rows = RAW.portfolio || [];
+    const kpiRow = document.getElementById('portfolioKpiRow');
+    const tbody = document.getElementById('tbody-portfolio');
+    const insightsEl = document.getElementById('portfolioInsights');
+    const trendEl = document.getElementById('portfolioTrendChart');
+    const barEl = document.getElementById('portfolioBar');
+
+    if (!rows.length) {
+      kpiRow.innerHTML = '';
+      if (barEl.clientWidth) barEl.innerHTML = '';
+      if (trendEl.clientWidth) trendEl.innerHTML = '';
+      tbody.innerHTML = '';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 9; td.className = 'card-sub';
+      td.textContent = 'No portfolio data yet — check back after the next hourly refresh.';
+      tr.appendChild(td); tbody.appendChild(tr);
+      insightsEl.innerHTML = '';
+      return;
+    }
+
+    const p = computePortfolio();
+
+    const kpis = [
+      { label: 'Total loans', raw: p.totalLoans, fmt: fmtNum },
+      { label: 'Total principal lent', raw: p.totalPrincipal, fmt: fmtMoney },
+      { label: 'Net return (realized)', raw: p.netReturn, fmt: fmtMoney },
+      { label: 'Capital currently active', raw: p.activePrincipal, fmt: fmtMoney },
+      { label: 'Active loans', raw: p.activeLoans, fmt: fmtNum },
+      { label: 'Default rate', raw: p.defaultRate == null ? null : p.defaultRate * 100, fmt: v => v == null ? '—' : fmtPct(v) },
+      { label: 'Accounts used', raw: p.accountsUsed, fmt: fmtNum },
+    ];
+    kpiRow.innerHTML = '';
+    kpis.forEach((k, i) => {
+      const tile = document.createElement('div'); tile.className = 'stat-tile'; tile.style.animationDelay = (i * 45) + 'ms';
+      const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = k.label;
+      const val = document.createElement('div'); val.className = 'value';
+      tile.appendChild(lab); tile.appendChild(val);
+      kpiRow.appendChild(tile);
+      // No count-up animation here (unlike the other KPI rows): this function is called from
+      // redrawAllCharts(), which the ResizeObserver below can re-fire several times in quick
+      // succession as newly-revealed content changes the observed element's height — setting
+      // text directly keeps every one of those re-renders correct instead of racing.
+      val.textContent = k.raw == null ? '—' : k.fmt(k.raw);
+    });
+
+    const sorted = p.accounts.slice().sort((a, b) => b.principal - a.principal);
+    renderPortfolioBar(sorted);
+
+    tbody.innerHTML = '';
+    sorted.forEach(a => {
+      const tr = document.createElement('tr'); tr.style.cursor = 'default';
+      const nameTd = document.createElement('td'); nameTd.className = 'name-cell'; nameTd.textContent = a.name;
+      tr.appendChild(nameTd);
+      [fmtNum(a.loans), fmtMoney(a.principal), fmtMoney(a.netReturn), fmtNum(a.active),
+       a.defaultRate == null ? '—' : fmtPct(a.defaultRate * 100), fmtMoney(a.avgLoan),
+       fmtDate(a.firstT), fmtDate(a.lastT)]
+        .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+
+    const trendLoans = rows.filter(r => r.start_t != null).map(r => ({ t: r.start_t, p: r.principal || 0 }));
+    if (trendLoans.length) {
+      const minT = Math.min(...trendLoans.map(x => x.t));
+      const maxT = Math.max(...trendLoans.map(x => x.t));
+      renderPortfolioTrendChart(buildTrend(trendLoans, minT, maxT));
+    }
+
+    renderPortfolioInsights(p);
+  }
+
   // ---------- Defaults: bot-confirmed ***UNPAID*** loans table (all-time, partial coverage) ----------
   function initUnpaidTableSection() {
     let sortKey = 't', sortDir = -1;
@@ -3546,6 +3879,7 @@
   function redrawAllCharts() {
     renderTrend(); renderPaceChart(); lenderSection.resize(); borrowerSection.resize(); pairsSection.resize();
     renderHeatmapActivity(currentFiltered); renderDayOfMonth(currentFiltered); renderHeatmapFeeSize(currentFiltered);
+    renderPortfolio();
   }
 
   applyFilter();
