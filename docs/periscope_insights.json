@@ -1,15 +1,13 @@
 {
-  "generated_at": "2026-08-06T10:01:35Z",
-  "headline": "Weekly lending volume jumped 43.5% to $98,951 even as a $421,577 overdue book — 1,118 loans, most of them months late — keeps piling up underneath it.",
+  "generated_at": "2026-08-07T01:39:32Z",
+  "headline": "H0mo_fuge, the platform's #6 lender by volume ($74,375 across 184 loans), has only ever gotten repaid on 10 of them — a 5.4% repayment rate against the platform's 72.5% average.",
   "insights": [
-    {"emoji": "📈", "title": "Lending volume up 43.5% week over week", "body": "This week's 274 loans moved $98,951, up from $68,958 across 224 loans last week. Average fee held flat (20.2% vs 20.0%), so the surge is pure volume, not looser terms."},
-    {"emoji": "⚠️", "title": "$421,577 sitting overdue across 1,118 loans", "body": "That's 70.6% of all unrepaid loans with a known term past their due date, worth more than four times this week's fresh lending. The oldest is a $400 loan to queentofu, now 178 days past due."},
-    {"emoji": "🤝", "title": "10thGroupA and brum21's five-loan trust ladder", "body": "Same lender, same borrower, five loans since Feb 2026 climbing from $1,000 to $2,000 to $2,500 to $5,500 (all repaid) and now a $6,000 loan — the largest single loan on record, still outstanding at 97-day term."},
-    {"emoji": "👑", "title": "Top 5 lenders own 53.7% of all volume", "body": "BCboneless leads with $357,806 across 1,005 loans, followed by asiandaydreamer ($294,022) and 10thGroupA ($241,867). Just five accounts have written over half of the $2,105,131 lent to date."},
-    {"emoji": "🔄", "title": "This week's leaderboard has a new #1", "body": "FlashyRaisin9345, normally #4 all-time by volume, tops this week's lending with $13,673, edging out perennial leader BCboneless ($12,380) and NC_Detail ($8,495)."},
-    {"emoji": "🦈", "title": "Loan-shark outlier: 150% fee on a $40 loan", "body": "Apprehensive-One-586 charged Clarkelthekat a 150% fee on a 7-day, $40 loan — 7.5x the platform median of 20.0% across the 3,107 loans with a recorded rate. It was repaid."},
-    {"emoji": "💰", "title": "Total lending crossed $2M on Jul 29", "body": "Cumulative principal lent passed the $2,000,000 mark just over a week ago and now stands at $2,105,131 across 6,440 loans since records began in Feb 2026."},
-    {"emoji": "🚩", "title": "Comment-flagged non-payer invisible in the ledger", "body": "keenanmcooper is the most-flagged name in unpaid-loan comment threads (4 mentions) but has zero recorded loans in loans_final.json — a reminder the comment-flag signal catches activity the formal ledger misses entirely."},
-    {"emoji": "📅", "title": "Fridays are the busiest lending day", "body": "1,010 of 6,440 loans (15.7%) were posted on a Friday, versus just 830 on Sundays — a 21.7% gap between the busiest and quietest day of the week."}
+    {"title": "H0mo_fuge's $74,375 book: 94.6% unpaid", "body": "184 loans since February, only 10 ever marked repaid — a 5.4% repayment rate against the platform's 72.5% average. 138 of the 174 outstanding loans are already past due, and three borrowers alone (frozteh, LeviFritzroy, imacockerspaniel) account for 34 loans worth $11,200 with a flawless 0% repayment record."},
+    {"title": "Busiest relationship on record: 40 loans, one pair", "body": "asiandaydreamer has lent to Rootman626 40 separate times since Feb 8, 2026 — more than any other lender-borrower pairing in the ledger, well ahead of the next-closest pair at 29. Mostly small $25-$200 loans, repaid 87.5% of the time."},
+    {"title": "A second frequent pair, far worse odds", "body": "chiefwinamac and Aynotwoo have done 29 loans together since Feb 9 — the platform's second-most-repeated relationship — but only 55.2% got repaid, leaving $1,200 across 13 loans outstanding. Same repeat-borrower pattern as asiandaydreamer/Rootman626, opposite outcome."},
+    {"title": "Cumulative lending crossed $2.1M on Aug 5", "body": "Total principal hit $2,100,539 just two days ago, barely a week after clearing $2M on Jul 29 — the fastest $100K added yet. Running total now sits at $2,105,711 across 6,445 loans."},
+    {"title": "156 lenders carry 1,797 borrowers", "body": "That's roughly 11.5 borrowers per active lender. Just five accounts — BCboneless ($357,806), asiandaydreamer ($294,022), 10thGroupA ($242,117), FlashyRaisin9345 ($125,352) and NC_Detail ($111,870) — control 53.7% of all $2,105,711 ever lent."},
+    {"title": "Quiet day: overdue book barely moved", "body": "1,111 loans worth $420,387 sit past due, essentially flat versus $421,577 a day ago. Average fee held at 20.1% this week versus 19.9% last week — no meaningful shift in either risk or pricing."},
+    {"title": "Platform-wide repayment sits at 72.5%", "body": "4,670 of 6,445 loans on record have been repaid. That baseline is what makes H0mo_fuge's 5.4% and chiefwinamac's 55.2% stand out as real outliers rather than noise."}
   ]
 }
