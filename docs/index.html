@@ -1,6 +1,7 @@
 <meta charset="utf-8">
 <title>r/borrow LIVE Analytics</title>
 <meta name="color-scheme" content="light">
+<meta name="theme-color" content="#eeebe2">
 <link rel="icon" type="image/png" href="https://lendmate.pro/images/logo.png">
 <link rel="apple-touch-icon" href="https://lendmate.pro/images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -123,6 +124,15 @@
     transition: border-color 0.15s ease;
   }
   .login-card input:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  .login-card input:-webkit-autofill,
+  .login-card input:-webkit-autofill:hover,
+  .login-card input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text-primary);
+    -webkit-box-shadow: 0 0 0px 1000px var(--page-plane) inset;
+    box-shadow: 0 0 0px 1000px var(--page-plane) inset;
+    caret-color: var(--text-primary);
+    transition: background-color 5000s ease-in-out 0s;
+  }
   .login-card input.field-error { border-color: #d03b3b; }
   .login-pass-wrap { position: relative; display: flex; }
   .login-pass-wrap input { padding-right: 40px; }
@@ -812,7 +822,7 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 13:47 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 13:54 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
