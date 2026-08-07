@@ -812,7 +812,7 @@
       </div>
       <p class="subtitle" id="subtitleText">Loading…</p>
       <div class="dataset-badge" id="datasetBadge"></div>
-      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 12:07 IST</div>
+      <div class="dataset-badge" id="lastRefreshedBadge" style="margin-left:8px;">Data last refreshed: Aug 07, 2026 12:12 IST</div>
       <button id="refreshPageBtn" type="button" title="Reload the page to check for a newer published version — the underlying data itself updates hourly on its own schedule."><span class="refresh-icon">↻</span> <span class="refresh-label">Refresh</span></button>
       <button id="logoutBtn" type="button" title="Sign out of this dashboard"><span class="logout-icon" aria-hidden="true">⎋</span> <span class="logout-label">Logout</span></button>
     </header>
@@ -854,26 +854,6 @@
     <div class="kpi-row" id="kpiRow"></div>
 
     <div class="card">
-      <h2>Loan volume over time</h2>
-      <p class="card-sub" id="trendSub">Number of confirmed loans funded, all lenders combined</p>
-      <div class="filter-row" style="margin-bottom:8px;">
-        <div class="top-n-toggle" id="projectionToggle">
-          <button data-on="0" class="active">Actuals only</button>
-          <button data-on="1">+ Show projection</button>
-        </div>
-        <span class="hint" id="projectionHint"></span>
-        <button class="export-btn" id="download-trendChart" type="button" style="margin-left:auto;">⬇ PNG</button>
-      </div>
-      <div id="trendChart"></div>
-    </div>
-
-    <div class="card">
-      <h2>What changed since yesterday</h2>
-      <p class="card-sub" id="digestSub">Comparing the most recently completed day to the one before it — all-time data, independent of the date filter above.</p>
-      <div id="digestBody"></div>
-    </div>
-
-    <div class="card">
       <h2>Today's pace<span class="pace-live-badge" id="paceLiveBadge">Live</span></h2>
       <p class="card-sub" id="paceSub">Hour-by-hour running total, so you can catch a slow day early instead of finding out tomorrow. Compare against a preset day or pick any two dates — independent of the date filter above.</p>
       <div class="filter-row" style="margin-bottom:8px;">
@@ -904,6 +884,26 @@
         <button class="export-btn" id="download-paceChart" type="button" style="margin-left:auto;">⬇ PNG</button>
       </div>
       <p class="card-sub" id="paceFootnote" style="margin:10px 0 0;"></p>
+    </div>
+
+    <div class="card">
+      <h2>What changed since yesterday</h2>
+      <p class="card-sub" id="digestSub">Comparing the most recently completed day to the one before it — all-time data, independent of the date filter above.</p>
+      <div id="digestBody"></div>
+    </div>
+
+    <div class="card">
+      <h2>Loan volume over time</h2>
+      <p class="card-sub" id="trendSub">Number of confirmed loans funded, all lenders combined</p>
+      <div class="filter-row" style="margin-bottom:8px;">
+        <div class="top-n-toggle" id="projectionToggle">
+          <button data-on="0" class="active">Actuals only</button>
+          <button data-on="1">+ Show projection</button>
+        </div>
+        <span class="hint" id="projectionHint"></span>
+        <button class="export-btn" id="download-trendChart" type="button" style="margin-left:auto;">⬇ PNG</button>
+      </div>
+      <div id="trendChart"></div>
     </div>
 
     </section>
