@@ -1020,8 +1020,8 @@
     </div>
 
     <div class="card">
-      <h2>Fee % by loan size</h2>
-      <p class="card-sub">Do smaller loans get charged a higher percentage fee than larger ones? Each cell is a count of loans in that size/fee combination (loans with an unparsed fee are excluded).</p>
+      <h2>Interest % by loan size</h2>
+      <p class="card-sub">Do smaller loans get charged a higher percentage interest than larger ones? Each cell is a count of loans in that size/interest combination (loans with unparsed interest are excluded).</p>
       <div id="heatmapFeeSize"></div>
     </div>
 
@@ -1073,7 +1073,7 @@
             <th data-key="num_loans">Loans</th>
             <th data-key="total_amount">Total $</th>
             <th data-key="avg_loan_size">Avg $</th>
-            <th data-key="avg_interest_pct">Avg Fee</th>
+            <th data-key="avg_interest_pct">Avg Interest</th>
             <th data-key="avg_duration_days">Avg Days</th>
             <th data-key="repaid_rate_pct">Repaid</th>
             <th data-key="unique_others">Borrowers</th>
@@ -1139,7 +1139,7 @@
             <th data-key="num_loans">Loans</th>
             <th data-key="total_amount">Total $</th>
             <th data-key="avg_loan_size">Avg $</th>
-            <th data-key="avg_interest_pct">Avg Fee</th>
+            <th data-key="avg_interest_pct">Avg Interest</th>
             <th data-key="avg_duration_days">Avg Days</th>
             <th data-key="repaid_rate_pct">Repaid</th>
             <th data-key="unique_others">Lenders</th>
@@ -1248,7 +1248,7 @@
             <th data-key="l" style="text-align:left">Lender</th>
             <th data-key="b" style="text-align:left">Borrower</th>
             <th data-key="p">Amount</th>
-            <th data-key="f">Fee %</th>
+            <th data-key="f">Interest %</th>
             <th data-key="d">Duration</th>
             <th data-key="r">Repaid</th>
             <th>Post</th>
@@ -1405,7 +1405,7 @@
 
     <footer class="notes">
       <p><b>Source:</b> r/borrow's own LoansBot confirmation ledger (loan-creation and repayment comments), cross-referenced with each request post's stated terms. Pulled via a public Reddit archive, not Reddit's live API.</p>
-      <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Fee/interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
+      <p><b>Loan counts &amp; dollar amounts</b> come directly from the bot's ledger and are highly reliable. <b>Interest %</b> is parsed from post titles (not tracked by the bot) — available for roughly half of loans; the rest are omitted from that average rather than guessed. <b>Duration</b> uses actual give/repay dates when a loan is marked repaid, otherwise the scheduled repay date from the post. <b>Repaid %</b> reflects loans marked fully repaid as of the data pull — recent loans haven't had time to mature, so it understates repayment for active participants. <b>Borrower/lender identity</b> is by Reddit username only — the same person operating more than one account would appear as separate entries.</p>
     </footer>
     </div>
   </div>
@@ -1865,7 +1865,7 @@
             [`${opts.entityWordCap} loans`, d.num_loans.toLocaleString()],
             ['Total $', fmtMoney(d.total_amount)],
             ['Avg loan size', fmtMoney(d.avg_loan_size)],
-            ['Avg fee', fmtPct(d.avg_interest_pct)],
+            ['Avg interest', fmtPct(d.avg_interest_pct)],
             [`Unique ${opts.counterpartWordPlural}`, d.unique_others.toLocaleString()],
             ['Active loans (all-time)', d.active_count.toLocaleString()],
             ['Outstanding $ (all-time)', fmtMoney(d.outstanding)],
@@ -2510,8 +2510,8 @@
       const withFee = loans.filter(x => x.f != null).length;
       return {
         emoji: '💸',
-        title: `Average rate this window: ${fmtPct(o.avg_interest_pct)}`,
-        body: `Across ${withFee.toLocaleString()} loans with a stated fee.${trendTxt}`,
+        title: `Average interest this window: ${fmtPct(o.avg_interest_pct)}`,
+        body: `Across ${withFee.toLocaleString()} loans with stated interest.${trendTxt}`,
       };
     }
 
@@ -2530,7 +2530,7 @@
           items.push({ emoji: '🌙', title: `Quietest active hour: ${hourLabel(min.h)}`, body: `Just ${min.c.toLocaleString()} loan${min.c === 1 ? '' : 's'} funded around ${hourLabel(min.h)} IST in this window — the calm before the next rush.` });
         }
         const biggest = loans.reduce((a, b) => (b.p > a.p ? b : a));
-        items.push({ emoji: '🐋', title: `Biggest loan: ${fmtMoney(biggest.p)}`, body: `${biggest.l} funded ${biggest.b} for ${fmtMoney(biggest.p)} on ${fmtDate(biggest.t)}${biggest.f != null ? ` at ${fmtPct(biggest.f)} fee` : ''}.` });
+        items.push({ emoji: '🐋', title: `Biggest loan: ${fmtMoney(biggest.p)}`, body: `${biggest.l} funded ${biggest.b} for ${fmtMoney(biggest.p)} on ${fmtDate(biggest.t)}${biggest.f != null ? ` at ${fmtPct(biggest.f)} interest` : ''}.` });
 
         const first = loans.reduce((a, b) => (a.t < b.t ? a : b));
         items.push({ emoji: '🌱', title: 'How this window started', body: `The first loan was ${first.l} → ${first.b} for ${fmtMoney(first.p)} on ${fmtDate(first.t)}.` });
@@ -2572,7 +2572,7 @@
         if (short.length >= 3 && long.length >= 3) {
           const sAvg = avg(short.map(x => x.f)), lAvg = avg(long.map(x => x.f));
           const higher = sAvg > lAvg ? 'Short' : 'Long';
-          items.push({ emoji: '🔬', title: `${higher} loans charge more`, body: `Loans of 7 days or less average ${fmtPct(sAvg)} in fees, versus ${fmtPct(lAvg)} for longer loans. ${higher === 'Short' ? 'Speed costs a premium.' : 'Patience is cheaper — longer terms average lower fees.'}` });
+          items.push({ emoji: '🔬', title: `${higher} loans charge more`, body: `Loans of 7 days or less average ${fmtPct(sAvg)} in interest, versus ${fmtPct(lAvg)} for longer loans. ${higher === 'Short' ? 'Speed costs a premium.' : 'Patience is cheaper — longer terms average lower interest.'}` });
         }
       }
 
@@ -3822,7 +3822,7 @@
       { label: 'Total loans funded', raw: o.total_loans, fmt: fmtNum },
       { label: 'Total $ lent', raw: o.total_dollars, fmt: fmtMoney },
       { label: 'Avg loan size', raw: o.avg_loan_size, fmt: fmtMoney },
-      { label: 'Avg fee / interest', raw: o.avg_interest_pct, fmt: fmtPct },
+      { label: 'Avg interest', raw: o.avg_interest_pct, fmt: fmtPct },
       { label: 'Avg duration', raw: o.avg_duration_days, fmt: v => fmtDays(v) + ' days' },
       { label: 'Active lenders', raw: o.unique_lenders, fmt: fmtNum },
       { label: 'Active borrowers', raw: o.unique_borrowers, fmt: fmtNum },
@@ -4178,9 +4178,9 @@
         if (count > 0) rect.style.fill = colorForIntensity(count, max);
         rect.style.animation = `cellPop 0.3s ease both ${(row * FEE_BUCKETS.length + col) * 20}ms`;
         rect.addEventListener('pointermove', ev => {
-          showTooltip(ev.clientX, ev.clientY, `${sb.label} loans, ${fb.label} fee`, [
+          showTooltip(ev.clientX, ev.clientY, `${sb.label} loans, ${fb.label} interest`, [
             ['Loan count', count.toLocaleString()],
-            ['Share of fee-tagged loans', withFee.length ? ((count / withFee.length) * 100).toFixed(1) + '%' : '—'],
+            ['Share of interest-tagged loans', withFee.length ? ((count / withFee.length) * 100).toFixed(1) + '%' : '—'],
           ]);
         });
         rect.addEventListener('pointerleave', hideTooltip);
@@ -4206,7 +4206,7 @@
       const note = document.createElement('p');
       note.className = 'card-sub fee-size-note';
       note.style.marginTop = '10px';
-      note.textContent = `${(loans.length - withFee.length).toLocaleString()} of ${loans.length.toLocaleString()} loans in this range don't have a parsed fee % and are excluded from this chart.`;
+      note.textContent = `${(loans.length - withFee.length).toLocaleString()} of ${loans.length.toLocaleString()} loans in this range don't have a parsed interest % and are excluded from this chart.`;
       el.appendChild(note);
     }
   }
@@ -4362,7 +4362,7 @@
     const table = document.createElement('table'); table.className = 'rank-table';
     const thead = document.createElement('thead');
     const htr = document.createElement('tr');
-    ['Date & time', 'Role', 'Counterparty', 'Amount', 'Fee %', 'Duration', 'Repaid', 'Post'].forEach((label, i) => {
+    ['Date & time', 'Role', 'Counterparty', 'Amount', 'Interest %', 'Duration', 'Repaid', 'Post'].forEach((label, i) => {
       const th = document.createElement('th'); th.textContent = label;
       if (i === 2) th.style.textAlign = 'left';
       htr.appendChild(th);
