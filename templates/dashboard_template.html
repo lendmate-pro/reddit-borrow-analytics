@@ -2628,8 +2628,8 @@
 
     function updateFeedSub() {
       feedSubEl.textContent = dailyInsights && dailyInsights.insights.length
-        ? `Claude's daily read on the data — generated ${relativeTime(dailyInsights.generated_at)}.`
-        : 'Claude\'s daily read on the data, refreshed every morning.';
+        ? `Daily read on the data — generated ${relativeTime(dailyInsights.generated_at)}.`
+        : 'Daily read on the data, refreshed every morning.';
     }
 
     crazyBtnEl.addEventListener('click', () => {
@@ -2648,7 +2648,7 @@
       renderReveal(defaultReveal());
     }
 
-    // Claude's daily analysis, if published — fetched once client-side; falls back to the
+    // Daily analysis, if published — fetched once client-side; falls back to the
     // deterministic engine above (buildPool/randomPoolAnswer) if it's missing or the fetch errors.
     fetch('./periscope_insights.json', { cache: 'no-store' })
       .then(r => (r.ok ? r.json() : null))
