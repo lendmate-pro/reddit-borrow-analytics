@@ -949,7 +949,7 @@
       <a href="#pairs" data-page="pairs">Pairs</a>
       <a href="#loans" data-page="loans">Loans</a>
       <a href="#defaults" data-page="defaults">Defaults</a>
-      <a href="#loyalty" data-page="loyalty">Loyalty</a>
+      <a href="#one-and-done" data-page="one-and-done">One-and-Done</a>
       <!-- "My Portfolio" nav link disabled for now — see PORTFOLIO_ENABLED in hourly_update.py and
            the currentPageFromHash() guard below. Restore this <a> to bring the tab back. -->
     </nav>
@@ -1346,8 +1346,8 @@
 
     </section>
 
-    <section class="page-section" data-page="loyalty">
-    <div class="section-heading" id="section-loyalty">Loyalty</div>
+    <section class="page-section" data-page="one-and-done">
+    <div class="section-heading" id="section-one-and-done">One-and-Done</div>
 
     <div class="card">
       <h2>One-and-done borrowers</h2>
@@ -3555,16 +3555,20 @@
 
     // ---- KPI tiles ----
     const kpiRow = document.getElementById('loyaltyKpiRow');
+    const median = sorted => {
+      if (!sorted.length) return null;
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    };
     const totalVolume = rows.reduce((s, r) => s + (r.p || 0), 0);
-    const sortedPrincipals = rows.map(r => r.p || 0).sort((a, b) => a - b);
-    const medianPrincipal = sortedPrincipals.length ? sortedPrincipals[Math.floor(sortedPrincipals.length / 2)] : null;
+    const medianPrincipal = median(rows.map(r => r.p || 0).sort((a, b) => a - b));
     const durations = rows.map(r => r.d).filter(d => d != null).sort((a, b) => a - b);
-    const medianDuration = durations.length ? durations[Math.floor(durations.length / 2)] : null;
+    const medianDuration = median(durations);
     const tiles = [
       { label: 'Qualifying borrowers', raw: rows.length, fmt: fmtNum },
       { label: 'Total repaid volume', raw: totalVolume, fmt: fmtMoney },
       { label: 'Median loan size', raw: medianPrincipal, fmt: fmtMoney },
-      { label: 'Median days to repay', raw: medianDuration, fmt: fmtNum },
+      { label: 'Median days to repay', raw: medianDuration, fmt: v => fmtNum(Math.round(v)) },
     ];
     kpiRow.innerHTML = '';
     tiles.forEach((k, i) => {
@@ -3581,7 +3585,7 @@
     // ---- Monthly trend ----
     const monthCounts = new Map();
     rows.forEach(r => {
-      const d = new Date(r.t * 1000);
+      const d = istDate(r.t);
       const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
       monthCounts.set(key, (monthCounts.get(key) || 0) + 1);
     });
@@ -3697,7 +3701,7 @@
         tr.appendChild(lTd);
         const tTd = document.createElement('td'); tTd.textContent = fmtDate(x.t); tr.appendChild(tTd);
         const pTd = document.createElement('td'); pTd.textContent = fmtMoney(x.p); tr.appendChild(pTd);
-        const fTd = document.createElement('td'); fTd.textContent = x.f == null ? '—' : fmtPct(x.f); tr.appendChild(fTd);
+        const fTd = document.createElement('td'); fTd.textContent = fmtPct(x.f); tr.appendChild(fTd);
         const dTd = document.createElement('td'); dTd.textContent = x.d == null ? '—' : x.d + 'd'; tr.appendChild(dTd);
         const payTd = document.createElement('td');
         const payWrap = document.createElement('div'); payWrap.className = 'pm-chip-wrap';
@@ -3745,7 +3749,7 @@
     document.getElementById('export-loyalty')?.addEventListener('click', () => {
       const headers = ['Borrower', 'Lender', 'First loan', 'Principal', 'Fee', 'Term', 'Accepts', 'Activity', 'Last seen'];
       const dataRows = lastFilteredRows.map(x => [
-        x.b, x.l, fmtDate(x.t), fmtMoney(x.p), x.f == null ? '—' : fmtPct(x.f), x.d == null ? '—' : x.d + 'd',
+        x.b, x.l, fmtDate(x.t), fmtMoney(x.p), fmtPct(x.f), x.d == null ? '—' : x.d + 'd',
         (x.pay && x.pay.length ? x.pay.map(p => LOYALTY_PAY_LABEL[p] || p).join('; ') : 'Not specified'),
         LOYALTY_TIER_LABEL[x.tier], loyaltyLastSeen(x.actT),
       ]);
