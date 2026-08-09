@@ -27,6 +27,8 @@ UNPAID_PATH = DATA / "unpaid_flags.jsonl"
 POSTS_PATH = DATA / "posts_raw.jsonl"
 LOANS_FINAL_PATH = DATA / "loans_final.json"
 DASHBOARD_DATA_PATH = DATA / "dashboard_data_v2.json"
+ACTIVITY_CACHE_PATH = DATA / "reddit_activity_cache.json"
+LOYALTY_WINDOW_DAYS = 182
 DOCS_DIR = ROOT / "docs"
 DASHBOARD_HTML_PATH = DOCS_DIR / "index.html"
 AUTH_HASH_PATH = CONFIG / "auth_hash.txt"
@@ -214,6 +216,31 @@ def find_scheduled_date(title, post_created_utc):
     return best
 
 
+PAYMENT_PATTERNS = [
+    ("paypal", re.compile(r"paypal|\bpp\b", re.IGNORECASE)),
+    ("venmo", re.compile(r"venmo", re.IGNORECASE)),
+    ("cashapp", re.compile(r"cash\s*app", re.IGNORECASE)),
+    ("zelle", re.compile(r"zelle", re.IGNORECASE)),
+    ("applepay", re.compile(r"apple\s*pay", re.IGNORECASE)),
+    ("googlepay", re.compile(r"google\s*pay", re.IGNORECASE)),
+    ("chime", re.compile(r"\bchime\b", re.IGNORECASE)),
+    ("crypto", re.compile(r"crypto|bitcoin|\bbtc\b", re.IGNORECASE)),
+    ("etransfer", re.compile(r"e-?transfer", re.IGNORECASE)),
+    ("banktransfer", re.compile(r"bank\s*transfer", re.IGNORECASE)),
+    ("wire", re.compile(r"\bwire\b", re.IGNORECASE)),
+    ("moneygram", re.compile(r"moneygram|western union", re.IGNORECASE)),
+    ("check", re.compile(r"\bcheck\b", re.IGNORECASE)),
+    ("any", re.compile(r"any\s*payment", re.IGNORECASE)),
+    ("prearranged", re.compile(r"pre.?arrang\w*", re.IGNORECASE)),
+]
+
+
+def find_payment_methods(title):
+    """What a borrower said they'd accept, read off their request post title (the standard
+    r/borrow "[REQ] (amount) (location) (methods)" format) — not proof of what was actually used."""
+    return [key for key, pat in PAYMENT_PATTERNS if pat.search(title or "")]
+
+
 def parse_date_str(s):
     if not s or not s.strip():
         return None
@@ -329,6 +356,46 @@ def build_unpaid_list():
     return out
 
 
+def build_loyalty_list(loans):
+    """Borrowers whose entire loan history is exactly one loan, taken and repaid within the
+    trailing LOYALTY_WINDOW_DAYS — first-timers who came, repaid, and never came back. Recomputed
+    from the full loan archive every run, so it stays current the same way the rest of the
+    dashboard does; only each borrower's Reddit-activity signal (act_t/act_90) is a periodic
+    snapshot — see scripts/refresh_borrower_activity.py."""
+    posts = {}
+    for line in open(POSTS_PATH):
+        p = json.loads(line)
+        posts[p["id"]] = p
+
+    activity = {}
+    if ACTIVITY_CACHE_PATH.exists():
+        activity = json.loads(ACTIVITY_CACHE_PATH.read_text())
+
+    by_borrower = defaultdict(list)
+    for l in loans:
+        if l["borrower"]:
+            by_borrower[l["borrower"]].append(l)
+
+    cutoff = time.time() - LOYALTY_WINDOW_DAYS * 86400
+    out = []
+    for borrower, ls in by_borrower.items():
+        if len(ls) != 1:
+            continue
+        loan = ls[0]
+        if not loan["is_repaid"] or loan["created_utc"] < cutoff:
+            continue
+        post = posts.get(loan["post_id"])
+        act = activity.get(borrower, {})
+        out.append({
+            "b": borrower, "l": loan["lender"], "p": loan["principal"], "f": loan["fee_pct"],
+            "d": loan["duration_days"], "t": loan["created_utc"], "u": loan["post_id"],
+            "id": loan["loan_id"], "pay": find_payment_methods(post["title"]) if post else [],
+            "actT": act.get("last_activity_utc"), "act90": act.get("count_90d"),
+        })
+    out.sort(key=lambda r: r["t"], reverse=True)
+    return out
+
+
 # "My Portfolio" is disabled for now — flip to True to resume publishing it. While disabled, no
 # NocoDB request is made and the public dashboard JSON gets an empty "portfolio" list.
 PORTFOLIO_ENABLED = False
@@ -396,6 +463,10 @@ def build_dashboard_data(loans):
         "range": {"min_t": min(c["t"] for c in compact), "max_t": max(c["t"] for c in compact)},
         "unpaid": build_unpaid_list(),
         "portfolio": fetch_portfolio_loans(),
+        "loyalty": build_loyalty_list(loans),
+        "loyaltyMeta": {
+            "activityAsOf": int(ACTIVITY_CACHE_PATH.stat().st_mtime) if ACTIVITY_CACHE_PATH.exists() else None,
+        },
     }
     data_str = json.dumps(out, separators=(",", ":"))
     DASHBOARD_DATA_PATH.write_text(data_str)

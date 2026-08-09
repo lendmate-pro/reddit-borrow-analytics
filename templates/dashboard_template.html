@@ -640,7 +640,48 @@
     background: var(--series-1-wash); color: var(--series-1);
   }
   .profile-role-badge.warn { background: rgba(208,59,59,0.12); color: #d03b3b; }
+  .profile-role-badge.accent2 { background: var(--series-2-wash); color: var(--series-2); }
+  .profile-role-badge.muted { background: var(--gridline); color: var(--text-secondary); }
   .profile-empty { padding: 6px 0; color: var(--text-muted); font-size: 13.5px; }
+
+  /* ---------- Loyalty tab: one-and-done borrowers ---------- */
+  .pm-chip {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--page-plane);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .pm-chip.prearranged { font-style: italic; }
+  .pm-chip-wrap { display: flex; flex-wrap: wrap; gap: 4px; max-width: 240px; }
+
+  .loyalty-bars { display: flex; align-items: flex-end; gap: 12px; height: 100px; margin-top: 4px; }
+  .loyalty-bars .col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+  .loyalty-bars .col-count { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .loyalty-bars .col-track { flex: 1; width: 100%; display: flex; align-items: flex-end; background: var(--page-plane); border-bottom: 1px solid var(--baseline); border-radius: 3px 3px 0 0; }
+  .loyalty-bars .col-fill { width: 100%; background: var(--series-1); border-radius: 3px 3px 0 0; min-height: 3px; }
+  .loyalty-bars .col-label { font-size: 11px; color: var(--text-muted); margin-top: 6px; font-weight: 600; }
+
+  .loyalty-stack { display: flex; width: 100%; height: 12px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .loyalty-stack .seg { height: 100%; }
+  .loyalty-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; }
+  .loyalty-legend .item { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+  .loyalty-legend .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .loyalty-legend .lbl { color: var(--text-secondary); }
+  .loyalty-legend .n { font-weight: 700; color: var(--text-primary); }
+  .loyalty-legend .pct { color: var(--text-muted); font-weight: 400; }
+
+  .loyalty-hbars .row { display: grid; grid-template-columns: minmax(90px, 130px) 1fr 80px; align-items: center; gap: 10px; padding: 4px 0; }
+  .loyalty-hbars .row-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .loyalty-hbars .row-track { height: 8px; background: var(--page-plane); border-radius: 4px; overflow: hidden; }
+  .loyalty-hbars .row-fill { height: 100%; border-radius: 4px; min-width: 3px; background: var(--series-1); }
+  .loyalty-hbars .row-count { font-size: 12.5px; color: var(--text-primary); text-align: right; white-space: nowrap; }
+  .loyalty-hbars .row-pct { color: var(--text-muted); }
+  .loyalty-other-note { font-size: 12px; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 
   .top-n-toggle { display: flex; gap: 4px; }
   .top-n-toggle button {
@@ -908,6 +949,7 @@
       <a href="#pairs" data-page="pairs">Pairs</a>
       <a href="#loans" data-page="loans">Loans</a>
       <a href="#defaults" data-page="defaults">Defaults</a>
+      <a href="#loyalty" data-page="loyalty">Loyalty</a>
       <!-- "My Portfolio" nav link disabled for now — see PORTFOLIO_ENABLED in hourly_update.py and
            the currentPageFromHash() guard below. Restore this <a> to bring the tab back. -->
     </nav>
@@ -1300,6 +1342,95 @@
       </table>
       </div>
       <div class="pagination-row" id="pagination-unpaid"></div>
+    </div>
+
+    </section>
+
+    <section class="page-section" data-page="loyalty">
+    <div class="section-heading" id="section-loyalty">Loyalty</div>
+
+    <div class="card">
+      <h2>One-and-done borrowers</h2>
+      <p class="card-sub">Borrowers whose entire loan history is a single loan, taken in the trailing six months, repaid in full, and never repeated. Recomputed live from the full archive every time this page loads — a borrower drops off this list the moment they take a second loan.</p>
+      <div class="kpi-row" id="loyaltyKpiRow"></div>
+    </div>
+
+    <div class="card">
+      <h2>When they took that one loan</h2>
+      <p class="card-sub" id="loyaltyMonthlySub">Loading…</p>
+      <div class="loyalty-bars" id="loyalty-monthly-bars"></div>
+    </div>
+
+    <div class="card">
+      <h2>How active they are on Reddit today</h2>
+      <p class="card-sub" id="loyaltyActivitySub">Loading…</p>
+      <div class="loyalty-stack" id="loyalty-activity-stack"></div>
+      <div class="loyalty-legend" id="loyalty-activity-legend"></div>
+    </div>
+
+    <div class="card">
+      <h2>What they said they'd accept</h2>
+      <p class="card-sub">Parsed from each borrower's request post title — the standard r/borrow "[REQ] (amount) (location) (methods)" format. This is what they said they'd take, not confirmed proof of how the loan was actually settled. Some listed more than one; "Pre-arranged" means the loan was set up privately with a specific lender, so no method was posted publicly.</p>
+      <div class="loyalty-hbars" id="loyalty-payment-bars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Who funded them</h2>
+      <p class="card-sub" id="loyaltyLenderSub">Loading…</p>
+      <div class="loyalty-hbars" id="loyalty-lender-bars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Full list</h2>
+      <p class="card-sub">Click a column header to sort. Click a borrower or lender name to open their profile.</p>
+      <div class="filter-row">
+        <input type="search" id="search-loyalty" placeholder="Search borrower or lender username…" />
+        <label class="hint" for="tier-filter-loyalty">Activity</label>
+        <select id="tier-filter-loyalty" class="range-select">
+          <option value="all">All</option>
+          <option value="very_active">Very active</option>
+          <option value="active">Active</option>
+          <option value="occasional">Occasional</option>
+          <option value="dormant">Dormant</option>
+        </select>
+        <label class="hint" for="pay-filter-loyalty">Accepts</label>
+        <select id="pay-filter-loyalty" class="range-select">
+          <option value="all">All methods</option>
+          <option value="paypal">PayPal</option>
+          <option value="cashapp">Cash App</option>
+          <option value="venmo">Venmo</option>
+          <option value="zelle">Zelle</option>
+          <option value="applepay">Apple Pay</option>
+          <option value="prearranged">Pre-arranged</option>
+        </select>
+        <label class="hint" for="pagesize-loyalty">Rows per page</label>
+        <select id="pagesize-loyalty" class="range-select">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="all">All</option>
+        </select>
+        <span class="hint" id="count-loyalty"></span>
+        <button class="export-btn" id="export-loyalty" type="button" style="margin-left:auto;" title="Exports every row matching your current search and filters, not just this page">⬇ Export CSV</button>
+      </div>
+      <div class="table-scroll">
+      <table class="rank-table" id="table-loyalty">
+        <thead>
+          <tr>
+            <th data-key="b" style="text-align:left">Borrower</th>
+            <th data-key="l" style="text-align:left">Lender</th>
+            <th data-key="t">First loan</th>
+            <th data-key="p">Principal</th>
+            <th data-key="f">Fee</th>
+            <th data-key="d">Term</th>
+            <th style="text-align:left">Accepts</th>
+            <th style="text-align:left">Activity</th>
+            <th data-key="actT">Last seen</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-loyalty"></tbody>
+      </table>
+      </div>
+      <div class="pagination-row" id="pagination-loyalty"></div>
     </div>
 
     </section>
@@ -3371,6 +3502,254 @@
     renderTable();
   }
   initUnpaidTableSection();
+
+  // ---------- Loyalty: one-and-done borrowers (took one loan in the trailing 6 months, repaid
+  // it, never came back). Payment methods and lender are recomputed live every run; the Reddit
+  // activity signal (actT/act90) is a periodic snapshot — see scripts/refresh_borrower_activity.py. ----------
+  const LOYALTY_PAY_LABEL = {
+    paypal: 'PayPal', venmo: 'Venmo', cashapp: 'Cash App', zelle: 'Zelle',
+    applepay: 'Apple Pay', googlepay: 'Google Pay', chime: 'Chime', crypto: 'Crypto',
+    etransfer: 'e-Transfer', banktransfer: 'Bank Transfer', wire: 'Wire',
+    moneygram: 'MoneyGram/WU', check: 'Check', any: 'Any method', prearranged: 'Pre-arranged',
+    none: 'Not specified',
+  };
+  const LOYALTY_TIER_LABEL = {
+    very_active: 'Very active', active: 'Active', occasional: 'Occasional',
+    dormant: 'Dormant', unrated: 'Not yet rated',
+  };
+  const LOYALTY_TIER_CLASS = {
+    very_active: '', active: 'accent2', occasional: 'muted', dormant: 'warn', unrated: 'muted',
+  };
+  const LOYALTY_TIER_DOT = {
+    very_active: 'var(--series-1)', active: 'var(--series-2)', occasional: 'var(--text-muted)',
+    dormant: '#d03b3b', unrated: 'var(--text-muted)',
+  };
+
+  function loyaltyTier(row) {
+    if (row.actT == null) return 'unrated';
+    const daysSince = (Date.now() / 1000 - row.actT) / 86400;
+    if (daysSince <= 7 && (row.act90 || 0) >= 15) return 'very_active';
+    if (daysSince <= 30) return 'active';
+    if (daysSince <= 90) return 'occasional';
+    return 'dormant';
+  }
+  function loyaltyLastSeen(actT) {
+    if (actT == null) return '—';
+    const days = Math.max(0, (Date.now() / 1000 - actT) / 86400);
+    if (days < 1) return 'today';
+    if (days < 2) return 'yesterday';
+    return Math.round(days) + 'd ago';
+  }
+  function loyaltyBadge(tier) {
+    const cls = LOYALTY_TIER_CLASS[tier] || '';
+    return `<span class="profile-role-badge${cls ? ' ' + cls : ''}"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:5px;"></span>${LOYALTY_TIER_LABEL[tier]}</span>`;
+  }
+  function loyaltyPayChips(pay) {
+    if (!pay || !pay.length) return `<span class="pm-chip">${LOYALTY_PAY_LABEL.none}</span>`;
+    return pay.map(p => `<span class="pm-chip${p === 'prearranged' ? ' prearranged' : ''}">${LOYALTY_PAY_LABEL[p] || p}</span>`).join('');
+  }
+
+  function initLoyaltySection() {
+    const rows = RAW.loyalty || [];
+    rows.forEach(r => { r.tier = loyaltyTier(r); });
+
+    // ---- KPI tiles ----
+    const kpiRow = document.getElementById('loyaltyKpiRow');
+    const totalVolume = rows.reduce((s, r) => s + (r.p || 0), 0);
+    const sortedPrincipals = rows.map(r => r.p || 0).sort((a, b) => a - b);
+    const medianPrincipal = sortedPrincipals.length ? sortedPrincipals[Math.floor(sortedPrincipals.length / 2)] : null;
+    const durations = rows.map(r => r.d).filter(d => d != null).sort((a, b) => a - b);
+    const medianDuration = durations.length ? durations[Math.floor(durations.length / 2)] : null;
+    const tiles = [
+      { label: 'Qualifying borrowers', raw: rows.length, fmt: fmtNum },
+      { label: 'Total repaid volume', raw: totalVolume, fmt: fmtMoney },
+      { label: 'Median loan size', raw: medianPrincipal, fmt: fmtMoney },
+      { label: 'Median days to repay', raw: medianDuration, fmt: fmtNum },
+    ];
+    kpiRow.innerHTML = '';
+    tiles.forEach((k, i) => {
+      const tile = document.createElement('div');
+      tile.className = 'stat-tile';
+      tile.style.animationDelay = (i * 45) + 'ms';
+      const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = k.label;
+      const val = document.createElement('div'); val.className = 'value';
+      tile.appendChild(lab); tile.appendChild(val);
+      kpiRow.appendChild(tile);
+      if (k.raw == null) { val.textContent = '—'; } else { animateNumber(val, k.raw, k.fmt); }
+    });
+
+    // ---- Monthly trend ----
+    const monthCounts = new Map();
+    rows.forEach(r => {
+      const d = new Date(r.t * 1000);
+      const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+      monthCounts.set(key, (monthCounts.get(key) || 0) + 1);
+    });
+    const months = [...monthCounts.keys()].sort();
+    const maxMonth = Math.max(1, ...monthCounts.values());
+    const monthFmt = k => new Date(k + '-01T00:00:00Z').toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    document.getElementById('loyaltyMonthlySub').textContent =
+      `${rows.length.toLocaleString()} first loans across ${months.length} month${months.length === 1 ? '' : 's'}.`;
+    document.getElementById('loyalty-monthly-bars').innerHTML = months.map(k => {
+      const c = monthCounts.get(k);
+      const h = Math.round(c / maxMonth * 100);
+      return `<div class="col"><div class="col-count">${c}</div><div class="col-track"><div class="col-fill" style="height:${h}%"></div></div><div class="col-label">${monthFmt(k)}</div></div>`;
+    }).join('');
+
+    // ---- Activity breakdown ----
+    const tierOrder = ['very_active', 'active', 'occasional', 'dormant', 'unrated'];
+    const tierCounts = new Map(tierOrder.map(t => [t, 0]));
+    rows.forEach(r => tierCounts.set(r.tier, (tierCounts.get(r.tier) || 0) + 1));
+    const asOf = (RAW.loyaltyMeta && RAW.loyaltyMeta.activityAsOf) ? fmtDate(RAW.loyaltyMeta.activityAsOf) : 'unknown';
+    document.getElementById('loyaltyActivitySub').textContent =
+      `Based on each account's public Reddit post/comment history — activity snapshot as of ${asOf}, not from r/borrow alone.`;
+    document.getElementById('loyalty-activity-stack').innerHTML = tierOrder.filter(t => tierCounts.get(t) > 0).map(t => {
+      const pct = rows.length ? (tierCounts.get(t) / rows.length * 100) : 0;
+      return `<div class="seg" style="width:${pct}%;background:${LOYALTY_TIER_DOT[t]}" title="${LOYALTY_TIER_LABEL[t]}: ${tierCounts.get(t)}"></div>`;
+    }).join('');
+    document.getElementById('loyalty-activity-legend').innerHTML = tierOrder.filter(t => tierCounts.get(t) > 0).map(t => {
+      const n = tierCounts.get(t);
+      const pct = rows.length ? Math.round(n / rows.length * 100) : 0;
+      return `<div class="item"><span class="dot" style="background:${LOYALTY_TIER_DOT[t]}"></span><span class="lbl">${LOYALTY_TIER_LABEL[t]}</span><span class="n">${n} <span class="pct">(${pct}%)</span></span></div>`;
+    }).join('');
+
+    // ---- Payment method breakdown ----
+    const payCounts = new Map();
+    let noneCount = 0;
+    rows.forEach(r => {
+      if (!r.pay || !r.pay.length) { noneCount++; return; }
+      r.pay.forEach(p => payCounts.set(p, (payCounts.get(p) || 0) + 1));
+    });
+    if (noneCount) payCounts.set('none', noneCount);
+    const paySorted = [...payCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const payMax = paySorted.length ? paySorted[0][1] : 1;
+    document.getElementById('loyalty-payment-bars').innerHTML = paySorted.map(([key, c]) => {
+      const w = Math.round(c / payMax * 100);
+      const pct = rows.length ? Math.round(c / rows.length * 100) : 0;
+      return `<div class="row"><div class="row-label">${LOYALTY_PAY_LABEL[key] || key}</div><div class="row-track"><div class="row-fill" style="width:${w}%"></div></div><div class="row-count">${c} <span class="row-pct">(${pct}%)</span></div></div>`;
+    }).join('');
+
+    // ---- Lender breakdown ----
+    const lenderCounts = new Map();
+    rows.forEach(r => lenderCounts.set(r.l, (lenderCounts.get(r.l) || 0) + 1));
+    const lenderSorted = [...lenderCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const lenderTop = lenderSorted.slice(0, 8);
+    const lenderOtherN = lenderSorted.length - lenderTop.length;
+    const lenderOtherCount = lenderSorted.slice(8).reduce((s, [, c]) => s + c, 0);
+    const lenderMax = lenderTop.length ? lenderTop[0][1] : 1;
+    document.getElementById('loyaltyLenderSub').textContent =
+      `${lenderSorted.length} unique lender${lenderSorted.length === 1 ? '' : 's'} funded these ${rows.length} loans.`;
+    document.getElementById('loyalty-lender-bars').innerHTML = lenderTop.map(([name, c]) => {
+      const w = Math.round(c / lenderMax * 100);
+      const pct = rows.length ? Math.round(c / rows.length * 100) : 0;
+      const link = makeNameLink(name);
+      link.style.color = 'var(--series-1)';
+      return `<div class="row"><div class="row-label">${link.outerHTML}</div><div class="row-track"><div class="row-fill" style="width:${w}%"></div></div><div class="row-count">${c} <span class="row-pct">(${pct}%)</span></div></div>`;
+    }).join('') + (lenderOtherN > 0
+      ? `<div class="loyalty-other-note">Plus ${lenderOtherCount} more loan${lenderOtherCount === 1 ? '' : 's'} spread across ${lenderOtherN} other lender${lenderOtherN === 1 ? '' : 's'}.</div>`
+      : '');
+
+    // ---- Main table ----
+    let sortKey = 't', sortDir = -1;
+    let searchTerm = '', tierFilter = 'all', payFilter = 'all';
+    let pageSize = 50, currentPage = 1, lastFilteredRows = [];
+
+    const searchEl = document.getElementById('search-loyalty');
+    const tierEl = document.getElementById('tier-filter-loyalty');
+    const payEl = document.getElementById('pay-filter-loyalty');
+    const countEl = document.getElementById('count-loyalty');
+    const tbodyEl = document.getElementById('tbody-loyalty');
+    const tableEl = document.getElementById('table-loyalty');
+    const pagesizeEl = document.getElementById('pagesize-loyalty');
+    const paginationEl = document.getElementById('pagination-loyalty');
+
+    function renderTable() {
+      tbodyEl.innerHTML = '';
+      const term = searchTerm.toLowerCase();
+      let filtered = rows.filter(x =>
+        (x.b.toLowerCase().includes(term) || (x.l || '').toLowerCase().includes(term)) &&
+        (tierFilter === 'all' || x.tier === tierFilter) &&
+        (payFilter === 'all' || (x.pay || []).includes(payFilter))
+      );
+      filtered.sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+        return sortDir * ((av ?? -Infinity) - (bv ?? -Infinity));
+      });
+      countEl.textContent = `${filtered.length.toLocaleString()} borrower${filtered.length === 1 ? '' : 's'}`;
+      lastFilteredRows = filtered;
+
+      const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const pageRows = pageSize === Infinity ? filtered : filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+      pageRows.forEach(x => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
+        const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b));
+        tr.appendChild(bTd);
+        const lTd = document.createElement('td'); lTd.className = 'name-cell'; lTd.appendChild(makeNameLink(x.l));
+        tr.appendChild(lTd);
+        const tTd = document.createElement('td'); tTd.textContent = fmtDate(x.t); tr.appendChild(tTd);
+        const pTd = document.createElement('td'); pTd.textContent = fmtMoney(x.p); tr.appendChild(pTd);
+        const fTd = document.createElement('td'); fTd.textContent = x.f == null ? '—' : fmtPct(x.f); tr.appendChild(fTd);
+        const dTd = document.createElement('td'); dTd.textContent = x.d == null ? '—' : x.d + 'd'; tr.appendChild(dTd);
+        const payTd = document.createElement('td');
+        const payWrap = document.createElement('div'); payWrap.className = 'pm-chip-wrap';
+        payWrap.innerHTML = loyaltyPayChips(x.pay);
+        payTd.appendChild(payWrap);
+        tr.appendChild(payTd);
+        const actTd = document.createElement('td'); actTd.innerHTML = loyaltyBadge(x.tier); tr.appendChild(actTd);
+        const seenTd = document.createElement('td'); seenTd.textContent = loyaltyLastSeen(x.actT); tr.appendChild(seenTd);
+        tbodyEl.appendChild(tr);
+      });
+
+      tableEl.querySelectorAll('th').forEach(th => {
+        th.classList.toggle('active', th.dataset.key === sortKey);
+        th.querySelector('.arrow')?.remove();
+        if (th.dataset.key === sortKey) {
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.textContent = sortDir === 1 ? '↑' : '↓';
+          th.appendChild(arrow);
+        }
+      });
+
+      renderPaginationControl(paginationEl, filtered.length, pageSize, currentPage, newPage => {
+        currentPage = newPage;
+        renderTable();
+      });
+    }
+
+    searchEl.addEventListener('input', ev => { searchTerm = ev.target.value; currentPage = 1; renderTable(); });
+    tierEl.addEventListener('change', ev => { tierFilter = ev.target.value; currentPage = 1; renderTable(); });
+    payEl.addEventListener('change', ev => { payFilter = ev.target.value; currentPage = 1; renderTable(); });
+    pagesizeEl.addEventListener('change', ev => {
+      pageSize = ev.target.value === 'all' ? Infinity : +ev.target.value;
+      currentPage = 1;
+      renderTable();
+    });
+    tableEl.querySelectorAll('th[data-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = (key === 'b' || key === 'l') ? 1 : -1; }
+        currentPage = 1;
+        renderTable();
+      });
+    });
+    document.getElementById('export-loyalty')?.addEventListener('click', () => {
+      const headers = ['Borrower', 'Lender', 'First loan', 'Principal', 'Fee', 'Term', 'Accepts', 'Activity', 'Last seen'];
+      const dataRows = lastFilteredRows.map(x => [
+        x.b, x.l, fmtDate(x.t), fmtMoney(x.p), x.f == null ? '—' : fmtPct(x.f), x.d == null ? '—' : x.d + 'd',
+        (x.pay && x.pay.length ? x.pay.map(p => LOYALTY_PAY_LABEL[p] || p).join('; ') : 'Not specified'),
+        LOYALTY_TIER_LABEL[x.tier], loyaltyLastSeen(x.actT),
+      ]);
+      downloadRowsAsCSV('one_and_done_borrowers', headers, dataRows);
+    });
+
+    renderTable();
+  }
+  initLoyaltySection();
 
   // ---------- Date range filter state ----------
   const RANGE_LABELS = { 'today': 'Today', '7': 'Last 7 days', '15': 'Last 15 days', '30': 'Last 1 month', '90': 'Last 3 months', 'all': `All time (${fullSpanLabel})`, 'custom': 'Custom range' };
