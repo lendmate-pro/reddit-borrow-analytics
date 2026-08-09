@@ -663,11 +663,11 @@
   .loyalty-bars .col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
   .loyalty-bars .col-count { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
   .loyalty-bars .col-track { flex: 1; width: 100%; display: flex; align-items: flex-end; background: var(--page-plane); border-bottom: 1px solid var(--baseline); border-radius: 3px 3px 0 0; }
-  .loyalty-bars .col-fill { width: 100%; background: var(--series-1); border-radius: 3px 3px 0 0; min-height: 3px; }
+  .loyalty-bars .col-fill { width: 100%; background: var(--series-1); border-radius: 3px 3px 0 0; min-height: 3px; transform-origin: bottom; }
   .loyalty-bars .col-label { font-size: 11px; color: var(--text-muted); margin-top: 6px; font-weight: 600; }
 
   .loyalty-stack { display: flex; width: 100%; height: 12px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
-  .loyalty-stack .seg { height: 100%; }
+  .loyalty-stack .seg { height: 100%; transform-origin: left; }
   .loyalty-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; }
   .loyalty-legend .item { display: flex; align-items: center; gap: 7px; font-size: 13px; }
   .loyalty-legend .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -678,7 +678,7 @@
   .loyalty-hbars .row { display: grid; grid-template-columns: minmax(90px, 130px) 1fr 80px; align-items: center; gap: 10px; padding: 4px 0; }
   .loyalty-hbars .row-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .loyalty-hbars .row-track { height: 8px; background: var(--page-plane); border-radius: 4px; overflow: hidden; }
-  .loyalty-hbars .row-fill { height: 100%; border-radius: 4px; min-width: 3px; background: var(--series-1); }
+  .loyalty-hbars .row-fill { height: 100%; border-radius: 4px; min-width: 3px; background: var(--series-1); transform-origin: left; }
   .loyalty-hbars .row-count { font-size: 12.5px; color: var(--text-primary); text-align: right; white-space: nowrap; }
   .loyalty-hbars .row-pct { color: var(--text-muted); }
   .loyalty-other-note { font-size: 12px; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
@@ -3590,10 +3590,11 @@
     const monthFmt = k => new Date(k + '-01T00:00:00Z').toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
     document.getElementById('loyaltyMonthlySub').textContent =
       `${rows.length.toLocaleString()} first loans across ${months.length} month${months.length === 1 ? '' : 's'}.`;
-    document.getElementById('loyalty-monthly-bars').innerHTML = months.map(k => {
+    document.getElementById('loyalty-monthly-bars').innerHTML = months.map((k, i) => {
       const c = monthCounts.get(k);
       const h = Math.round(c / maxMonth * 100);
-      return `<div class="col"><div class="col-count">${c}</div><div class="col-track"><div class="col-fill" style="height:${h}%"></div></div><div class="col-label">${monthFmt(k)}</div></div>`;
+      const delay = Math.min(i * 40, 300);
+      return `<div class="col"><div class="col-count">${c}</div><div class="col-track"><div class="col-fill" style="height:${h}%;animation:growBarY 0.4s ease both ${delay}ms"></div></div><div class="col-label">${monthFmt(k)}</div></div>`;
     }).join('');
 
     // ---- Activity breakdown ----
@@ -3603,14 +3604,16 @@
     const asOf = (RAW.loyaltyMeta && RAW.loyaltyMeta.activityAsOf) ? fmtDate(RAW.loyaltyMeta.activityAsOf) : 'unknown';
     document.getElementById('loyaltyActivitySub').textContent =
       `Based on each account's public Reddit post/comment history — activity snapshot as of ${asOf}, not from r/borrow alone.`;
-    document.getElementById('loyalty-activity-stack').innerHTML = tierOrder.filter(t => tierCounts.get(t) > 0).map(t => {
+    document.getElementById('loyalty-activity-stack').innerHTML = tierOrder.filter(t => tierCounts.get(t) > 0).map((t, i) => {
       const pct = rows.length ? (tierCounts.get(t) / rows.length * 100) : 0;
-      return `<div class="seg" style="width:${pct}%;background:${LOYALTY_TIER_DOT[t]}" title="${LOYALTY_TIER_LABEL[t]}: ${tierCounts.get(t)}"></div>`;
+      const delay = Math.min(i * 60, 300);
+      return `<div class="seg" style="width:${pct}%;background:${LOYALTY_TIER_DOT[t]};animation:growBarX 0.4s ease both ${delay}ms" title="${LOYALTY_TIER_LABEL[t]}: ${tierCounts.get(t)}"></div>`;
     }).join('');
-    document.getElementById('loyalty-activity-legend').innerHTML = tierOrder.filter(t => tierCounts.get(t) > 0).map(t => {
+    document.getElementById('loyalty-activity-legend').innerHTML = tierOrder.filter(t => tierCounts.get(t) > 0).map((t, i) => {
       const n = tierCounts.get(t);
       const pct = rows.length ? Math.round(n / rows.length * 100) : 0;
-      return `<div class="item"><span class="dot" style="background:${LOYALTY_TIER_DOT[t]}"></span><span class="lbl">${LOYALTY_TIER_LABEL[t]}</span><span class="n">${n} <span class="pct">(${pct}%)</span></span></div>`;
+      const delay = Math.min(i * 60, 300);
+      return `<div class="item" style="animation:fadeIn 0.4s ease both ${delay}ms"><span class="dot" style="background:${LOYALTY_TIER_DOT[t]}"></span><span class="lbl">${LOYALTY_TIER_LABEL[t]}</span><span class="n">${n} <span class="pct">(${pct}%)</span></span></div>`;
     }).join('');
 
     // ---- Payment method breakdown ----
@@ -3623,10 +3626,11 @@
     if (noneCount) payCounts.set('none', noneCount);
     const paySorted = [...payCounts.entries()].sort((a, b) => b[1] - a[1]);
     const payMax = paySorted.length ? paySorted[0][1] : 1;
-    document.getElementById('loyalty-payment-bars').innerHTML = paySorted.map(([key, c]) => {
+    document.getElementById('loyalty-payment-bars').innerHTML = paySorted.map(([key, c], i) => {
       const w = Math.round(c / payMax * 100);
       const pct = rows.length ? Math.round(c / rows.length * 100) : 0;
-      return `<div class="row"><div class="row-label">${LOYALTY_PAY_LABEL[key] || key}</div><div class="row-track"><div class="row-fill" style="width:${w}%"></div></div><div class="row-count">${c} <span class="row-pct">(${pct}%)</span></div></div>`;
+      const delay = Math.min(i * 25, 300);
+      return `<div class="row"><div class="row-label">${LOYALTY_PAY_LABEL[key] || key}</div><div class="row-track"><div class="row-fill" style="width:${w}%;animation:growBarX 0.4s ease both ${delay}ms"></div></div><div class="row-count">${c} <span class="row-pct">(${pct}%)</span></div></div>`;
     }).join('');
 
     // ---- Lender breakdown ----
@@ -3639,12 +3643,13 @@
     const lenderMax = lenderTop.length ? lenderTop[0][1] : 1;
     document.getElementById('loyaltyLenderSub').textContent =
       `${lenderSorted.length} unique lender${lenderSorted.length === 1 ? '' : 's'} funded these ${rows.length} loans.`;
-    document.getElementById('loyalty-lender-bars').innerHTML = lenderTop.map(([name, c]) => {
+    document.getElementById('loyalty-lender-bars').innerHTML = lenderTop.map(([name, c], i) => {
       const w = Math.round(c / lenderMax * 100);
       const pct = rows.length ? Math.round(c / rows.length * 100) : 0;
       const link = makeNameLink(name);
       link.style.color = 'var(--series-1)';
-      return `<div class="row"><div class="row-label">${link.outerHTML}</div><div class="row-track"><div class="row-fill" style="width:${w}%"></div></div><div class="row-count">${c} <span class="row-pct">(${pct}%)</span></div></div>`;
+      const delay = Math.min(i * 25, 300);
+      return `<div class="row"><div class="row-label">${link.outerHTML}</div><div class="row-track"><div class="row-fill" style="width:${w}%;animation:growBarX 0.4s ease both ${delay}ms"></div></div><div class="row-count">${c} <span class="row-pct">(${pct}%)</span></div></div>`;
     }).join('') + (lenderOtherN > 0
       ? `<div class="loyalty-other-note">Plus ${lenderOtherCount} more loan${lenderOtherCount === 1 ? '' : 's'} spread across ${lenderOtherN} other lender${lenderOtherN === 1 ? '' : 's'}.</div>`
       : '');
