@@ -1,0 +1,41 @@
+name: Daily Reddit activity refresh
+
+# Triggered externally by a cron-job.org job hitting the GitHub Actions "dispatch workflow"
+# API once a day (see README/setup notes) — not GitHub's own schedule trigger, by choice.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-activity-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Refresh Loyalty tab's Reddit activity cache
+        run: python3 scripts/refresh_borrower_activity.py
+
+      # Only touches data/reddit_activity_cache.json, not docs/**, so this doesn't need to
+      # dispatch pages-deploy.yml itself — the next hourly run (within the hour) picks up the
+      # refreshed cache and bakes it into the live site, same as everything else it publishes.
+      - name: Commit and push if changed
+        run: |
+          git config user.email "activity-bot@reddit-borrow-analytics.local"
+          git config user.name "Activity Refresh Bot"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Refresh Reddit activity cache: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
