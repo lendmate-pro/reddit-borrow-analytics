@@ -513,6 +513,28 @@
   .pace-live-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--series-1); animation: pace-blink 1.8s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .pace-live-badge::before { animation: none; } }
 
+  .fx-ticker-row { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+  .fx-ticker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 14px;
+  }
+  .fx-ticker-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--series-1); flex-shrink: 0; animation: pace-blink 1.8s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .fx-ticker-dot { animation: none; } }
+  .fx-ticker.is-stale .fx-ticker-dot { background: var(--text-muted); animation: none; }
+  .fx-ticker-label { color: var(--text-secondary); font-weight: 600; }
+  .fx-ticker-rate { color: var(--text-primary); font-weight: 700; }
+  .fx-ticker-meta { color: var(--text-muted); font-size: 11px; }
+  @media (max-width: 560px) {
+    .fx-ticker-row { justify-content: flex-start; }
+    .fx-ticker { width: 100%; box-sizing: border-box; }
+  }
+
   .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; transform-box: fill-box; transform-origin: center; }
   .heat-cell.empty { fill: var(--gridline); }
   .heat-legend-row { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
@@ -698,6 +720,8 @@
   .top-n-toggle button:hover:not(.active) { background: var(--series-1-wash); color: var(--text-primary); }
   .top-n-toggle button:active { transform: scale(0.96); }
   .top-n-toggle button.active { background: var(--series-1); color: #fff; border-color: var(--series-1); }
+  .top-n-toggle button:disabled { opacity: 0.4; cursor: default; }
+  .top-n-toggle button:disabled:hover { background: none; color: inherit; }
 
   .pagination-row {
     display: flex;
@@ -978,6 +1002,18 @@
     </div>
 
     <section class="page-section" data-page="overview">
+    <div class="fx-ticker-row">
+      <div class="top-n-toggle" id="currencyToggle" role="group" aria-label="Display currency">
+        <button data-currency="USD" class="active" type="button">USD</button>
+        <button data-currency="INR" type="button" disabled title="Waiting for live exchange rate…">INR</button>
+      </div>
+      <div class="fx-ticker" id="fxTicker" title="Live USD → INR exchange rate, refreshed automatically every 5 minutes">
+        <span class="fx-ticker-dot" aria-hidden="true"></span>
+        <span class="fx-ticker-label">USD → INR</span>
+        <span class="fx-ticker-rate" id="fxTickerRate">Loading…</span>
+        <span class="fx-ticker-meta" id="fxTickerMeta"></span>
+      </div>
+    </div>
     <div class="kpi-row" id="kpiRow"></div>
 
     <div class="card">
@@ -1565,7 +1601,16 @@
   })();
 
   const RAW = JSON.parse(document.getElementById('dashboard-data').textContent);
-  const fmtMoney = n => n == null ? '—' : '$' + Math.round(n).toLocaleString();
+  // Currency toggle: every $ figure across the dashboard flows through fmtMoney, so switching
+  // displayCurrency + reusing the FX ticker's live rate here converts everything in one place.
+  let displayCurrency = 'USD';
+  let currentFxRate = null; // USD -> INR, populated by the FX ticker once it has fetched a rate
+  const INR_FORMATTER = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+  const fmtMoney = n => {
+    if (n == null) return '—';
+    if (displayCurrency === 'INR' && currentFxRate) return '₹' + INR_FORMATTER.format(Math.round(n * currentFxRate));
+    return '$' + Math.round(n).toLocaleString();
+  };
   const fmtNum = n => n == null ? '—' : n.toLocaleString();
   const fmtPct = n => n == null ? '—' : n.toFixed(1) + '%';
   const fmtDays = n => n == null ? '—' : n.toFixed(1);
@@ -3500,8 +3545,9 @@
     });
 
     renderTable();
+    return { render: renderTable };
   }
-  initUnpaidTableSection();
+  const unpaidTableSection = initUnpaidTableSection();
 
   // ---------- Loyalty: one-and-done borrowers (took one loan in the trailing 6 months, repaid
   // it, never came back). Payment methods and lender are recomputed live every run; the Reddit
@@ -3757,8 +3803,9 @@
     });
 
     renderTable();
+    return { render: renderTable };
   }
-  initLoyaltySection();
+  const loyaltySection = initLoyaltySection();
 
   // ---------- Date range filter state ----------
   const RANGE_LABELS = { 'today': 'Today', '7': 'Last 7 days', '15': 'Last 15 days', '30': 'Last 1 month', '90': 'Last 3 months', 'all': `All time (${fullSpanLabel})`, 'custom': 'Custom range' };
@@ -4614,6 +4661,93 @@
     renderHeatmapActivity(currentFiltered); renderDayOfMonth(currentFiltered); renderHeatmapFeeSize(currentFiltered);
     renderPortfolio();
   }
+
+  // ---------- Live USD → INR ticker (Overview page) ----------
+  // Purely client-side: no cron job or backend needed. Each visitor's browser polls a free,
+  // no-key FX API directly and refreshes the displayed rate every 5 minutes while the tab is
+  // open. Two providers are tried in order in case one is down or rate-limited.
+  function initFxTicker() {
+    const tickerEl = document.getElementById('fxTicker');
+    const rateEl = document.getElementById('fxTickerRate');
+    const metaEl = document.getElementById('fxTickerMeta');
+    if (!tickerEl || !rateEl || !metaEl) return;
+
+    const FX_SOURCES = [
+      { url: 'https://api.frankfurter.app/latest?from=USD&to=INR', pick: d => d && d.rates && d.rates.INR },
+      { url: 'https://open.er-api.com/v6/latest/USD', pick: d => d && d.rates && d.rates.INR },
+    ];
+
+    let lastGoodAt = null;
+
+    function updateMeta() {
+      if (!lastGoodAt) { metaEl.textContent = ''; return; }
+      const mins = Math.max(0, Math.round((Date.now() - lastGoodAt) / 60000));
+      metaEl.textContent = mins < 1 ? 'updated just now' : `updated ${mins}m ago`;
+    }
+
+    async function fetchRate() {
+      for (const src of FX_SOURCES) {
+        try {
+          const res = await fetch(src.url, { cache: 'no-store' });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const rate = src.pick(data);
+          if (typeof rate === 'number' && isFinite(rate)) return rate;
+        } catch (e) { /* network error or CORS — fall through to next source */ }
+      }
+      return null;
+    }
+
+    async function refresh() {
+      const rate = await fetchRate();
+      if (rate != null) {
+        const hadRateBefore = currentFxRate != null;
+        currentFxRate = rate;
+        rateEl.textContent = '1 USD = ₹' + rate.toFixed(2);
+        lastGoodAt = Date.now();
+        tickerEl.classList.remove('is-stale');
+        if (!hadRateBefore) {
+          // The INR toggle button starts disabled (see initCurrencyToggle) until a rate exists.
+          const inrBtn = document.querySelector('#currencyToggle button[data-currency="INR"]');
+          if (inrBtn) { inrBtn.disabled = false; inrBtn.title = ''; }
+        }
+      } else if (!lastGoodAt) {
+        rateEl.textContent = 'Rate unavailable';
+        tickerEl.classList.add('is-stale');
+      } else {
+        tickerEl.classList.add('is-stale');
+      }
+      updateMeta();
+    }
+
+    refresh();
+    setInterval(refresh, 5 * 60 * 1000);
+    setInterval(updateMeta, 30 * 1000);
+  }
+  initFxTicker();
+
+  // ---------- USD / INR display toggle ----------
+  // Every $ figure on every page runs through fmtMoney, so flipping displayCurrency and
+  // re-running each page's own render entry point (not a full page reload) converts
+  // everything at once: KPIs, tables, chart tooltips, insight text, the lot.
+  function rerenderForCurrencyChange() {
+    applyFilter(); // Overview/Lenders/Borrowers/Pairs/Loans/Insights + activity & fee-size heatmaps
+    unpaidTableSection.render(); // Defaults page
+    loyaltySection.render(); // One-and-Done page
+    if (currentPageFromHash() === 'profile') renderProfile(currentProfileUsernameFromHash());
+  }
+
+  (function initCurrencyToggle() {
+    const toggleEl = document.getElementById('currencyToggle');
+    if (!toggleEl) return;
+    toggleEl.addEventListener('click', ev => {
+      const btn = ev.target.closest('button[data-currency]');
+      if (!btn || btn.classList.contains('active')) return;
+      displayCurrency = btn.dataset.currency;
+      [...toggleEl.children].forEach(b => b.classList.toggle('active', b === btn));
+      rerenderForCurrencyChange();
+    });
+  })();
 
   applyFilter();
   window.addEventListener('resize', redrawAllCharts);
