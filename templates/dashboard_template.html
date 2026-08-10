@@ -329,10 +329,10 @@
   .stat-tile .label { font-size: 10.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
   .stat-tile .value { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); overflow-wrap: anywhere; }
 
-  /* Overview's KPI row specifically has 8 tiles — keep them on one line above mobile widths instead
-     of letting the 8th ("Outstanding") wrap alone onto its own row */
+  /* Overview's KPI row specifically has 9 tiles — keep them on one line above mobile widths instead
+     of letting the last one wrap alone onto its own row */
   @media (min-width: 700px) {
-    #kpiRow { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+    #kpiRow { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 8px; }
     #kpiRow .stat-tile { padding: 14px 10px 12px; }
     #kpiRow .stat-tile .label { font-size: 9.5px; margin-bottom: 6px; }
     #kpiRow .stat-tile .value { font-size: 18px; }
@@ -1154,6 +1154,7 @@
             <th data-key="total_amount">Total $</th>
             <th data-key="avg_loan_size">Avg $</th>
             <th data-key="avg_interest_pct">Avg Interest</th>
+            <th data-key="total_profit">Est. Profit</th>
             <th data-key="avg_duration_days">Avg Days</th>
             <th data-key="repaid_rate_pct">Repaid</th>
             <th data-key="unique_others">Borrowers</th>
@@ -1220,6 +1221,7 @@
             <th data-key="total_amount">Total $</th>
             <th data-key="avg_loan_size">Avg $</th>
             <th data-key="avg_interest_pct">Avg Interest</th>
+            <th data-key="total_profit">Interest Paid</th>
             <th data-key="avg_duration_days">Avg Days</th>
             <th data-key="repaid_rate_pct">Repaid</th>
             <th data-key="unique_others">Lenders</th>
@@ -1280,6 +1282,7 @@
             <th data-key="count">Loans</th>
             <th data-key="total_amount">Total $</th>
             <th data-key="avg_loan_size">Avg $</th>
+            <th data-key="total_profit">Est. Profit</th>
             <th data-key="first_t">First loan</th>
             <th data-key="last_t">Last loan</th>
             <th data-key="repaid_count">Repaid</th>
@@ -1329,6 +1332,7 @@
             <th data-key="b" style="text-align:left">Borrower</th>
             <th data-key="p">Amount</th>
             <th data-key="f">Interest %</th>
+            <th data-key="profit">Profit $</th>
             <th data-key="d">Duration</th>
             <th data-key="r">Repaid</th>
             <th>Post</th>
@@ -1459,6 +1463,7 @@
             <th data-key="t">First loan</th>
             <th data-key="p">Principal</th>
             <th data-key="f">Fee</th>
+            <th data-key="profit">Profit $</th>
             <th data-key="d">Term</th>
             <th style="text-align:left">Accepts</th>
             <th style="text-align:left">Activity</th>
@@ -1603,6 +1608,13 @@
   })();
 
   const RAW = JSON.parse(document.getElementById('dashboard-data').textContent);
+  // Estimated profit: the fee % recorded per loan is the total interest for that loan's whole
+  // term (not annualized), so principal * fee% is exactly the $ the lender earns on repayment —
+  // "estimated" because for a not-yet-repaid loan it's what the agreed terms imply, not a
+  // confirmed payout. Computed once here so every table/aggregation below can just read x.profit.
+  const withProfit = x => { x.profit = x.f != null ? x.p * x.f / 100 : null; return x; };
+  RAW.loans.forEach(withProfit);
+  (RAW.loyalty || []).forEach(withProfit);
   // Currency toggle: every $ figure across the dashboard flows through fmtMoney, so switching
   // displayCurrency + reusing the FX ticker's live rate here converts everything in one place.
   let displayCurrency = 'USD';
@@ -1769,6 +1781,7 @@
   function summarizeGroup(display, items, otherField) {
     const n = items.length;
     const totalAmt = items.reduce((s, x) => s + x.p, 0);
+    const totalProfit = items.reduce((s, x) => s + (x.profit || 0), 0);
     const fees = items.filter(x => x.f != null).map(x => x.f);
     const durs = items.filter(x => x.d != null).map(x => x.d);
     const nRepaid = items.filter(x => x.r === 1).length;
@@ -1776,12 +1789,14 @@
     const others = [];
     for (const { display: odisplay, items: oitems } of groupLoans(items, otherField).values()) {
       const oTotal = oitems.reduce((s, x) => s + x.p, 0);
+      const oProfit = oitems.reduce((s, x) => s + (x.profit || 0), 0);
       const times = oitems.map(x => x.t).sort((a, b) => a - b);
       others.push({
         name: odisplay,
         count: oitems.length,
         total: oTotal,
         avg: oTotal / oitems.length,
+        profit: oProfit,
         first_t: times[0],
         last_t: times[times.length - 1],
         repaid_count: oitems.filter(x => x.r === 1).length,
@@ -1801,6 +1816,7 @@
       avg_interest_pct: fees.length ? avg(fees) : null,
       avg_duration_days: durs.length ? avg(durs) : null,
       repaid_rate_pct: (nRepaid / n) * 100,
+      total_profit: totalProfit,
       unique_others: uniqueOthers,
       repeat_others: repeatOthers,
       repeat_others_pct: uniqueOthers ? (repeatOthers / uniqueOthers) * 100 : 0,
@@ -1829,6 +1845,7 @@
         count: items.length,
         total_amount: total,
         avg_loan_size: total / items.length,
+        total_profit: items.reduce((s, x) => s + (x.profit || 0), 0),
         first_t: times[0],
         last_t: times[times.length - 1],
         repaid_count: items.filter(x => x.r === 1).length,
@@ -1857,6 +1874,7 @@
       avg_loan_size: loans.length ? totalDollars / loans.length : 0,
       avg_interest_pct: fees.length ? avg(fees) : null,
       avg_duration_days: durs.length ? avg(durs) : null,
+      total_profit: loans.reduce((s, x) => s + (x.profit || 0), 0),
       unique_lenders: new Set(loans.map(x => x.l.toLowerCase())).size,
       unique_borrowers: new Set(loans.map(x => x.b.toLowerCase())).size,
     };
@@ -2040,6 +2058,7 @@
             ['Total $', fmtMoney(d.total_amount)],
             ['Avg loan size', fmtMoney(d.avg_loan_size)],
             ['Avg interest', fmtPct(d.avg_interest_pct)],
+            ['Est. profit', fmtMoney(d.total_profit)],
             [`Unique ${opts.counterpartWordPlural}`, d.unique_others.toLocaleString()],
             ['Active loans (all-time)', d.active_count.toLocaleString()],
             ['Outstanding $ (all-time)', fmtMoney(d.outstanding)],
@@ -2075,7 +2094,7 @@
       table.className = 'detail-table';
       const thead = document.createElement('thead');
       const htr = document.createElement('tr');
-      [opts.counterpartWordCap, 'Loans together', 'Total $', 'Avg $', 'First loan', 'Last loan', 'Repaid']
+      [opts.counterpartWordCap, 'Loans together', 'Total $', 'Avg $', 'Est. Profit', 'First loan', 'Last loan', 'Repaid']
         .forEach(label => { const th = document.createElement('th'); th.textContent = label; htr.appendChild(th); });
       thead.appendChild(htr); table.appendChild(thead);
 
@@ -2090,7 +2109,7 @@
           nameTd.appendChild(chip);
         }
         tr.appendChild(nameTd);
-        [fmtNum(o.count), fmtMoney(o.total), fmtMoney(o.avg), fmtDate(o.first_t), fmtDate(o.last_t), `${o.repaid_count}/${o.count}`]
+        [fmtNum(o.count), fmtMoney(o.total), fmtMoney(o.avg), fmtMoney(o.profit), fmtDate(o.first_t), fmtDate(o.last_t), `${o.repaid_count}/${o.count}`]
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
         tbody.appendChild(tr);
       });
@@ -2138,7 +2157,7 @@
         tr.appendChild(nameTd);
 
         [fmtNum(r.num_loans), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtPct(r.avg_interest_pct),
-         fmtDays(r.avg_duration_days), fmtPct(r.repaid_rate_pct), fmtNum(r.unique_others), fmtPct(r.repeat_others_pct)]
+         fmtMoney(r.total_profit), fmtDays(r.avg_duration_days), fmtPct(r.repaid_rate_pct), fmtNum(r.unique_others), fmtPct(r.repeat_others_pct)]
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
 
         const primaryTd = document.createElement('td');
@@ -2173,7 +2192,7 @@
           const panelRow = document.createElement('tr');
           panelRow.className = 'detail-panel-row';
           const td = document.createElement('td');
-          td.colSpan = 14;
+          td.colSpan = 15;
           td.appendChild(buildDetailPanel(r));
           panelRow.appendChild(td);
           tbodyEl.appendChild(panelRow);
@@ -2240,7 +2259,7 @@
       });
       const rows = lastFilteredRows.map(r => [
         r.name, r.num_loans, fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtPct(r.avg_interest_pct),
-        fmtDays(r.avg_duration_days), fmtPct(r.repaid_rate_pct), r.unique_others, fmtPct(r.repeat_others_pct),
+        fmtMoney(r.total_profit), fmtDays(r.avg_duration_days), fmtPct(r.repaid_rate_pct), r.unique_others, fmtPct(r.repeat_others_pct),
         r.primary_other_name ? `${r.primary_other_name} (${r.primary_other_count}×, ${fmtPct(r.primary_other_pct)})` : '—',
         r.active_count, r.overdue_count, fmtPct(r.default_rate), fmtMoney(r.outstanding),
       ]);
@@ -2327,6 +2346,7 @@
             ['Loans together', d.count.toLocaleString()],
             ['Total $', fmtMoney(d.total_amount)],
             ['Avg loan size', fmtMoney(d.avg_loan_size)],
+            ['Est. profit', fmtMoney(d.total_profit)],
             ['First loan', fmtDate(d.first_t)],
             ['Last loan', fmtDate(d.last_t)],
           ]);
@@ -2376,7 +2396,7 @@
         borrowerTd.appendChild(makeNameLink(r.borrower));
         tr.appendChild(borrowerTd);
 
-        [fmtNum(r.count), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtDate(r.first_t), fmtDate(r.last_t), `${r.repaid_count}/${r.count}`]
+        [fmtNum(r.count), fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtMoney(r.total_profit), fmtDate(r.first_t), fmtDate(r.last_t), `${r.repaid_count}/${r.count}`]
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
 
         tbodyEl.appendChild(tr);
@@ -2425,7 +2445,7 @@
         const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
       });
       const rows = lastFilteredRows.map(r => [
-        r.lender, r.borrower, r.count, fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size),
+        r.lender, r.borrower, r.count, fmtMoney(r.total_amount), fmtMoney(r.avg_loan_size), fmtMoney(r.total_profit),
         fmtDate(r.first_t), fmtDate(r.last_t), `${r.repaid_count}/${r.count}`,
       ]);
       downloadRowsAsCSV('pairs', headers, rows);
@@ -2517,7 +2537,7 @@
         tr.appendChild(lTd);
         const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b));
         tr.appendChild(bTd);
-        [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
+        [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', fmtMoney(x.profit), x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
         const postTd = document.createElement('td');
         if (x.u) {
@@ -2580,7 +2600,7 @@
         const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
       });
       const rows = lastFilteredRows.map(x => [
-        fmtDateTime(x.t), x.l, x.b, fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—',
+        fmtDateTime(x.t), x.l, x.b, fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', fmtMoney(x.profit),
         x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No',
         x.u ? 'https://www.reddit.com/r/borrow/comments/' + x.u + '/' : '—',
       ]);
@@ -3609,12 +3629,14 @@
       return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
     };
     const totalVolume = rows.reduce((s, r) => s + (r.p || 0), 0);
+    const totalProfit = rows.reduce((s, r) => s + (r.profit || 0), 0);
     const medianPrincipal = median(rows.map(r => r.p || 0).sort((a, b) => a - b));
     const durations = rows.map(r => r.d).filter(d => d != null).sort((a, b) => a - b);
     const medianDuration = median(durations);
     const tiles = [
       { label: 'Qualifying borrowers', raw: rows.length, fmt: fmtNum },
       { label: 'Total repaid volume', raw: totalVolume, fmt: fmtMoney },
+      { label: 'Est. profit', raw: totalProfit, fmt: fmtMoney },
       { label: 'Median loan size', raw: medianPrincipal, fmt: fmtMoney },
       { label: 'Median days to repay', raw: medianDuration, fmt: v => fmtNum(Math.round(v)) },
     ];
@@ -3750,6 +3772,7 @@
         const tTd = document.createElement('td'); tTd.textContent = fmtDate(x.t); tr.appendChild(tTd);
         const pTd = document.createElement('td'); pTd.textContent = fmtMoney(x.p); tr.appendChild(pTd);
         const fTd = document.createElement('td'); fTd.textContent = fmtPct(x.f); tr.appendChild(fTd);
+        const profitTd = document.createElement('td'); profitTd.textContent = fmtMoney(x.profit); tr.appendChild(profitTd);
         const dTd = document.createElement('td'); dTd.textContent = x.d == null ? '—' : x.d + 'd'; tr.appendChild(dTd);
         const payTd = document.createElement('td');
         const payWrap = document.createElement('div'); payWrap.className = 'pm-chip-wrap';
@@ -3795,9 +3818,9 @@
       });
     });
     document.getElementById('export-loyalty')?.addEventListener('click', () => {
-      const headers = ['Borrower', 'Lender', 'First loan', 'Principal', 'Fee', 'Term', 'Accepts', 'Activity', 'Last seen'];
+      const headers = ['Borrower', 'Lender', 'First loan', 'Principal', 'Fee', 'Profit $', 'Term', 'Accepts', 'Activity', 'Last seen'];
       const dataRows = lastFilteredRows.map(x => [
-        x.b, x.l, fmtDate(x.t), fmtMoney(x.p), fmtPct(x.f), x.d == null ? '—' : x.d + 'd',
+        x.b, x.l, fmtDate(x.t), fmtMoney(x.p), fmtPct(x.f), fmtMoney(x.profit), x.d == null ? '—' : x.d + 'd',
         (x.pay && x.pay.length ? x.pay.map(p => LOYALTY_PAY_LABEL[p] || p).join('; ') : 'Not specified'),
         LOYALTY_TIER_LABEL[x.tier], loyaltyLastSeen(x.actT),
       ]);
@@ -4256,6 +4279,7 @@
       { label: 'Total $ lent', raw: o.total_dollars, fmt: fmtMoney },
       { label: 'Avg loan size', raw: o.avg_loan_size, fmt: fmtMoney },
       { label: 'Avg interest', raw: o.avg_interest_pct, fmt: fmtPct },
+      { label: 'Est. profit (interest earned)', raw: o.total_profit, fmt: fmtMoney },
       { label: 'Avg duration', raw: o.avg_duration_days, fmt: v => fmtDays(v) + ' days' },
       { label: 'Active lenders', raw: o.unique_lenders, fmt: fmtNum },
       { label: 'Active borrowers', raw: o.unique_borrowers, fmt: fmtNum },
@@ -4827,7 +4851,7 @@
     const table = document.createElement('table'); table.className = 'detail-table';
     const thead = document.createElement('thead');
     const htr = document.createElement('tr');
-    [otherLabel, 'Loans together', 'Total $', 'Avg $', 'First loan', 'Last loan', 'Repaid'].forEach(label => {
+    [otherLabel, 'Loans together', 'Total $', 'Avg $', 'Est. Profit', 'First loan', 'Last loan', 'Repaid'].forEach(label => {
       const th = document.createElement('th'); th.textContent = label; htr.appendChild(th);
     });
     thead.appendChild(htr); table.appendChild(thead);
@@ -4842,7 +4866,7 @@
         nameTd.appendChild(chip);
       }
       tr.appendChild(nameTd);
-      [fmtNum(o.count), fmtMoney(o.total), fmtMoney(o.avg), fmtDate(o.first_t), fmtDate(o.last_t), `${o.repaid_count}/${o.count}`]
+      [fmtNum(o.count), fmtMoney(o.total), fmtMoney(o.avg), fmtMoney(o.profit), fmtDate(o.first_t), fmtDate(o.last_t), `${o.repaid_count}/${o.count}`]
         .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
       tbody.appendChild(tr);
     });
@@ -4882,7 +4906,7 @@
     const table = document.createElement('table'); table.className = 'rank-table';
     const thead = document.createElement('thead');
     const htr = document.createElement('tr');
-    ['Date & time', 'Role', 'Counterparty', 'Amount', 'Interest %', 'Duration', 'Repaid', 'Post'].forEach((label, i) => {
+    ['Date & time', 'Role', 'Counterparty', 'Amount', 'Interest %', 'Interest $', 'Duration', 'Repaid', 'Post'].forEach((label, i) => {
       const th = document.createElement('th'); th.textContent = label;
       if (i === 2) th.style.textAlign = 'left';
       htr.appendChild(th);
@@ -4906,7 +4930,7 @@
         const dtTd = document.createElement('td'); dtTd.textContent = fmtDateTime(x.t); tr.appendChild(dtTd);
         const roleTd = document.createElement('td'); roleTd.textContent = a.role; tr.appendChild(roleTd);
         const cpTd = document.createElement('td'); cpTd.className = 'name-cell'; cpTd.appendChild(makeNameLink(a.counterpart)); tr.appendChild(cpTd);
-        [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
+        [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', fmtMoney(x.profit), x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
         const postTd = document.createElement('td');
         if (x.u) {
@@ -4964,11 +4988,13 @@
     if (p.lenderSummary) {
       kpis.push({ label: 'Loans given', raw: p.asLender.length, fmt: fmtNum });
       kpis.push({ label: 'Total $ lent', raw: p.lenderSummary.total_amount, fmt: fmtMoney });
+      kpis.push({ label: 'Est. profit earned', raw: p.lenderSummary.total_profit, fmt: fmtMoney });
       kpis.push({ label: "Borrowers' repaid rate", raw: p.lenderSummary.repaid_rate_pct, fmt: fmtPct });
     }
     if (p.borrowerSummary) {
       kpis.push({ label: 'Loans taken', raw: p.asBorrower.length, fmt: fmtNum });
       kpis.push({ label: 'Total $ borrowed', raw: p.borrowerSummary.total_amount, fmt: fmtMoney });
+      kpis.push({ label: 'Est. interest paid', raw: p.borrowerSummary.total_profit, fmt: fmtMoney });
       kpis.push({ label: 'Own repaid rate', raw: p.borrowerSummary.repaid_rate_pct, fmt: fmtPct });
     }
     kpis.push({ label: 'Outstanding now', raw: p.outstanding, fmt: fmtMoney });
