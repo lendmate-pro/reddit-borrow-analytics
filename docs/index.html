@@ -2776,8 +2776,12 @@
       return items;
     }
 
+    // dailyInsights text is pre-generated server-side with $ amounts baked into plain strings —
+    // it never passes through fmtMoney(), so it can't follow the USD/INR toggle. Prefer the
+    // client-computed pool instead whenever INR is active, so every number on screen is either
+    // correctly converted or absent — never silently stuck in USD next to converted figures.
     function randomPoolAnswer() {
-      if (dailyInsights && dailyInsights.insights.length) {
+      if (displayCurrency === 'USD' && dailyInsights && dailyInsights.insights.length) {
         return dailyInsights.insights[Math.floor(Math.random() * dailyInsights.insights.length)];
       }
       const pool = buildPool();
@@ -2786,7 +2790,7 @@
     }
 
     function defaultReveal() {
-      if (dailyInsights) {
+      if (displayCurrency === 'USD' && dailyInsights) {
         return { title: "Today's headline", body: dailyInsights.headline };
       }
       return randomPoolAnswer();
@@ -4279,7 +4283,7 @@
       { label: 'Total $ lent', raw: o.total_dollars, fmt: fmtMoney },
       { label: 'Avg loan size', raw: o.avg_loan_size, fmt: fmtMoney },
       { label: 'Avg interest', raw: o.avg_interest_pct, fmt: fmtPct },
-      { label: 'Est. profit (interest earned)', raw: o.total_profit, fmt: fmtMoney },
+      { label: 'Est. profit', raw: o.total_profit, fmt: fmtMoney },
       { label: 'Avg duration', raw: o.avg_duration_days, fmt: v => fmtDays(v) + ' days' },
       { label: 'Active lenders', raw: o.unique_lenders, fmt: fmtNum },
       { label: 'Active borrowers', raw: o.unique_borrowers, fmt: fmtNum },
