@@ -527,9 +527,6 @@
     border-radius: 20px;
     padding: 7px 14px;
   }
-  .fx-ticker-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--series-1); flex-shrink: 0; animation: pace-blink 1.8s ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce) { .fx-ticker-dot { animation: none; } }
-  .fx-ticker.is-stale .fx-ticker-dot { background: var(--text-muted); animation: none; }
   .fx-ticker-label { color: var(--text-secondary); font-weight: 600; }
   .fx-ticker-rate { color: var(--text-primary); font-weight: 700; }
   .fx-ticker-meta { color: var(--text-muted); font-size: 11px; }
@@ -1004,12 +1001,11 @@
         <div class="fx-ticker-group">
           <div class="top-n-toggle" id="currencyToggle" role="group" aria-label="Display currency">
             <button data-currency="USD" class="active" type="button">USD</button>
-            <button data-currency="INR" type="button" disabled title="Waiting for live exchange rate…">INR</button>
+            <button data-currency="INR" type="button" disabled title="No exchange rate available yet">INR</button>
           </div>
-          <div class="fx-ticker" id="fxTicker" title="Live USD → INR exchange rate, refreshed automatically every 5 minutes">
-            <span class="fx-ticker-dot" aria-hidden="true"></span>
+          <div class="fx-ticker" id="fxTicker" title="USD → INR, from a real market-rate source (Yahoo Finance), refreshed hourly alongside the rest of this dashboard's data">
             <span class="fx-ticker-label">USD → INR</span>
-            <span class="fx-ticker-rate" id="fxTickerRate">Loading…</span>
+            <span class="fx-ticker-rate" id="fxTickerRate">—</span>
             <span class="fx-ticker-meta" id="fxTickerMeta"></span>
           </div>
         </div>
@@ -4693,67 +4689,27 @@
     renderPortfolio();
   }
 
-  // ---------- Live USD → INR ticker (Overview page) ----------
-  // Purely client-side: no cron job or backend needed. Each visitor's browser polls a free,
-  // no-key FX API directly and refreshes the displayed rate every 5 minutes while the tab is
-  // open. Two providers are tried in order in case one is down or rate-limited.
+  // ---------- USD → INR ticker (Overview page) ----------
+  // Fetched server-side once an hour (scripts/hourly_update.py, fetch_usd_inr_rate) and baked
+  // into RAW.fx alongside the rest of the dashboard's data, rather than polled live from the
+  // browser. That sidesteps CORS entirely (server-to-server requests aren't restricted the way
+  // browser fetches are), which is what makes it possible to use a real market-rate source
+  // (Yahoo Finance) instead of the once-a-day reference-rate APIs a client-side fetch is limited
+  // to. RAW.fx is null only if every server-side source failed on the very first run ever.
   function initFxTicker() {
-    const tickerEl = document.getElementById('fxTicker');
     const rateEl = document.getElementById('fxTickerRate');
     const metaEl = document.getElementById('fxTickerMeta');
-    if (!tickerEl || !rateEl || !metaEl) return;
+    const inrBtn = document.querySelector('#currencyToggle button[data-currency="INR"]');
+    if (!rateEl || !metaEl) return;
 
-    const FX_SOURCES = [
-      { url: 'https://api.frankfurter.app/latest?from=USD&to=INR', pick: d => d && d.rates && d.rates.INR },
-      { url: 'https://open.er-api.com/v6/latest/USD', pick: d => d && d.rates && d.rates.INR },
-    ];
-
-    let lastGoodAt = null;
-
-    function updateMeta() {
-      if (!lastGoodAt) { metaEl.textContent = ''; return; }
-      const mins = Math.max(0, Math.round((Date.now() - lastGoodAt) / 60000));
-      metaEl.textContent = mins < 1 ? 'updated just now' : `updated ${mins}m ago`;
+    if (RAW.fx && typeof RAW.fx.usd_inr === 'number') {
+      currentFxRate = RAW.fx.usd_inr;
+      rateEl.textContent = '1 USD = ₹' + RAW.fx.usd_inr.toFixed(2);
+      metaEl.textContent = RAW.fx.as_of ? 'as of ' + fmtDate(RAW.fx.as_of) : '';
+      if (inrBtn) { inrBtn.disabled = false; inrBtn.title = ''; }
+    } else {
+      rateEl.textContent = 'Rate unavailable';
     }
-
-    async function fetchRate() {
-      for (const src of FX_SOURCES) {
-        try {
-          const res = await fetch(src.url, { cache: 'no-store' });
-          if (!res.ok) continue;
-          const data = await res.json();
-          const rate = src.pick(data);
-          if (typeof rate === 'number' && isFinite(rate)) return rate;
-        } catch (e) { /* network error or CORS — fall through to next source */ }
-      }
-      return null;
-    }
-
-    async function refresh() {
-      const rate = await fetchRate();
-      if (rate != null) {
-        const hadRateBefore = currentFxRate != null;
-        currentFxRate = rate;
-        rateEl.textContent = '1 USD = ₹' + rate.toFixed(2);
-        lastGoodAt = Date.now();
-        tickerEl.classList.remove('is-stale');
-        if (!hadRateBefore) {
-          // The INR toggle button starts disabled (see initCurrencyToggle) until a rate exists.
-          const inrBtn = document.querySelector('#currencyToggle button[data-currency="INR"]');
-          if (inrBtn) { inrBtn.disabled = false; inrBtn.title = ''; }
-        }
-      } else if (!lastGoodAt) {
-        rateEl.textContent = 'Rate unavailable';
-        tickerEl.classList.add('is-stale');
-      } else {
-        tickerEl.classList.add('is-stale');
-      }
-      updateMeta();
-    }
-
-    refresh();
-    setInterval(refresh, 5 * 60 * 1000);
-    setInterval(updateMeta, 30 * 1000);
   }
   initFxTicker();
 

@@ -454,10 +454,51 @@ def fetch_portfolio_loans():
     return compact
 
 
+def fetch_usd_inr_rate():
+    """Best-effort USD->INR rate for the dashboard's currency toggle, fetched server-side (no
+    browser CORS restrictions here, unlike the client-side ticker this replaced). Tries a real
+    market-rate source first - Yahoo Finance's quote endpoint reflects actual interbank/market
+    trading, not a once-a-day fixing - then falls back to daily reference-rate APIs if that's
+    unavailable. Returns (rate, source_label) or (None, None) if every source fails; the caller
+    falls back to whatever rate was baked in last run rather than losing the toggle entirely."""
+    sources = [
+        ("yahoo", "https://query1.finance.yahoo.com/v8/finance/chart/USDINR=X?interval=1m&range=1d",
+         lambda d: d["chart"]["result"][0]["meta"]["regularMarketPrice"]),
+        ("frankfurter", "https://api.frankfurter.dev/v1/latest?from=USD&to=INR",
+         lambda d: d["rates"]["INR"]),
+        ("open.er-api", "https://open.er-api.com/v6/latest/USD",
+         lambda d: d["rates"]["INR"]),
+    ]
+    for name, url, extract in sources:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            rate = extract(data)
+            if isinstance(rate, (int, float)) and rate > 0:
+                print(f"  FX rate: {rate} (source: {name})", flush=True)
+                return round(float(rate), 4), name
+        except Exception as e:
+            print(f"  FX source {name} failed: {e}", flush=True)
+    return None, None
+
+
 def build_dashboard_data(loans):
     compact = [{"l": l["lender"], "b": l["borrower"], "p": l["principal"], "f": l["fee_pct"],
                 "d": l["duration_days"], "r": 1 if l["is_repaid"] else 0, "t": l["created_utc"],
                 "u": l["post_id"], "pt": l["post_created_utc"]} for l in loans]
+
+    fx_rate, fx_source = fetch_usd_inr_rate()
+    if fx_rate is not None:
+        fx_out = {"usd_inr": fx_rate, "source": fx_source, "as_of": int(time.time())}
+    else:
+        fx_out = None
+        if DASHBOARD_DATA_PATH.exists():
+            try:
+                fx_out = json.loads(DASHBOARD_DATA_PATH.read_text()).get("fx")
+            except Exception:
+                fx_out = None
+
     out = {
         "loans": compact,
         "range": {"min_t": min(c["t"] for c in compact), "max_t": max(c["t"] for c in compact)},
@@ -467,6 +508,7 @@ def build_dashboard_data(loans):
         "loyaltyMeta": {
             "activityAsOf": int(ACTIVITY_CACHE_PATH.stat().st_mtime) if ACTIVITY_CACHE_PATH.exists() else None,
         },
+        "fx": fx_out,
     }
     data_str = json.dumps(out, separators=(",", ":"))
     DASHBOARD_DATA_PATH.write_text(data_str)
