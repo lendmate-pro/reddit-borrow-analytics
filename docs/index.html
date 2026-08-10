@@ -513,7 +513,10 @@
   .pace-live-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--series-1); animation: pace-blink 1.8s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .pace-live-badge::before { animation: none; } }
 
-  .fx-ticker-row { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+  /* Lives inside the date-filter-card's filter-row, pinned to the right of the date range
+     controls on wide screens (margin-left: auto) since it's a dashboard-wide view control just
+     like the date filter — shown above every page, not tucked into one page's content. */
+  .fx-ticker-group { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
   .fx-ticker {
     display: inline-flex;
     align-items: center;
@@ -530,9 +533,8 @@
   .fx-ticker-label { color: var(--text-secondary); font-weight: 600; }
   .fx-ticker-rate { color: var(--text-primary); font-weight: 700; }
   .fx-ticker-meta { color: var(--text-muted); font-size: 11px; }
-  @media (max-width: 560px) {
-    .fx-ticker-row { justify-content: flex-start; }
-    .fx-ticker { width: 100%; box-sizing: border-box; }
+  @media (max-width: 640px) {
+    .fx-ticker-group { margin-left: 0; }
   }
 
   .heat-cell { stroke: var(--surface-1); stroke-width: 2; cursor: pointer; transform-box: fill-box; transform-origin: center; }
@@ -998,22 +1000,22 @@
           <button id="customApply">Apply</button>
         </span>
         <span class="hint" id="rangeSummary"></span>
+        <div class="fx-ticker-group">
+          <div class="top-n-toggle" id="currencyToggle" role="group" aria-label="Display currency">
+            <button data-currency="USD" class="active" type="button">USD</button>
+            <button data-currency="INR" type="button" disabled title="Waiting for live exchange rate…">INR</button>
+          </div>
+          <div class="fx-ticker" id="fxTicker" title="Live USD → INR exchange rate, refreshed automatically every 5 minutes">
+            <span class="fx-ticker-dot" aria-hidden="true"></span>
+            <span class="fx-ticker-label">USD → INR</span>
+            <span class="fx-ticker-rate" id="fxTickerRate">Loading…</span>
+            <span class="fx-ticker-meta" id="fxTickerMeta"></span>
+          </div>
+        </div>
       </div>
     </div>
 
     <section class="page-section" data-page="overview">
-    <div class="fx-ticker-row">
-      <div class="top-n-toggle" id="currencyToggle" role="group" aria-label="Display currency">
-        <button data-currency="USD" class="active" type="button">USD</button>
-        <button data-currency="INR" type="button" disabled title="Waiting for live exchange rate…">INR</button>
-      </div>
-      <div class="fx-ticker" id="fxTicker" title="Live USD → INR exchange rate, refreshed automatically every 5 minutes">
-        <span class="fx-ticker-dot" aria-hidden="true"></span>
-        <span class="fx-ticker-label">USD → INR</span>
-        <span class="fx-ticker-rate" id="fxTickerRate">Loading…</span>
-        <span class="fx-ticker-meta" id="fxTickerMeta"></span>
-      </div>
-    </div>
     <div class="kpi-row" id="kpiRow"></div>
 
     <div class="card">
