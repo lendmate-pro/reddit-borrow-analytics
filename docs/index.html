@@ -100,14 +100,7 @@
     padding: 20px;
   }
   .main-panel {
-    /* .wrap caps content at 1600px, so on anything wider this background shows on both sides.
-       A flat, textureless fill there reads as unfinished rather than intentional - a soft, very
-       low-opacity ambient gradient (reusing the existing series wash colors, so it's automatically
-       theme-correct) gives the margin a sense of depth without competing with the data. */
-    background:
-      radial-gradient(1100px circle at 6% 0%, var(--series-1-wash), transparent 55%),
-      radial-gradient(1100px circle at 94% 100%, var(--series-2-wash), transparent 55%),
-      var(--panel);
+    background: var(--panel);
     border-radius: 24px;
     min-height: calc(100vh - 40px);
   }
