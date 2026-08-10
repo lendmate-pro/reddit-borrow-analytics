@@ -2058,7 +2058,7 @@
             ['Total $', fmtMoney(d.total_amount)],
             ['Avg loan size', fmtMoney(d.avg_loan_size)],
             ['Avg interest', fmtPct(d.avg_interest_pct)],
-            ['Est. profit', fmtMoney(d.total_profit)],
+            [opts.entityWord === 'lender' ? 'Est. profit' : 'Interest paid', fmtMoney(d.total_profit)],
             [`Unique ${opts.counterpartWordPlural}`, d.unique_others.toLocaleString()],
             ['Active loans (all-time)', d.active_count.toLocaleString()],
             ['Outstanding $ (all-time)', fmtMoney(d.outstanding)],
@@ -2094,7 +2094,7 @@
       table.className = 'detail-table';
       const thead = document.createElement('thead');
       const htr = document.createElement('tr');
-      [opts.counterpartWordCap, 'Loans together', 'Total $', 'Avg $', 'Est. Profit', 'First loan', 'Last loan', 'Repaid']
+      [opts.counterpartWordCap, 'Loans together', 'Total $', 'Avg $', opts.entityWord === 'lender' ? 'Est. Profit' : 'Interest Paid', 'First loan', 'Last loan', 'Repaid']
         .forEach(label => { const th = document.createElement('th'); th.textContent = label; htr.appendChild(th); });
       thead.appendChild(htr); table.appendChild(thead);
 
@@ -4843,7 +4843,7 @@
     };
   }
 
-  function buildCounterpartTable(title, sub, others, otherLabel) {
+  function buildCounterpartTable(title, sub, others, otherLabel, profitLabel) {
     const card = document.createElement('div');
     card.className = 'card';
     const h2 = document.createElement('h2'); h2.textContent = title; h2.style.marginBottom = '2px';
@@ -4855,7 +4855,7 @@
     const table = document.createElement('table'); table.className = 'detail-table';
     const thead = document.createElement('thead');
     const htr = document.createElement('tr');
-    [otherLabel, 'Loans together', 'Total $', 'Avg $', 'Est. Profit', 'First loan', 'Last loan', 'Repaid'].forEach(label => {
+    [otherLabel, 'Loans together', 'Total $', 'Avg $', profitLabel || 'Est. Profit', 'First loan', 'Last loan', 'Repaid'].forEach(label => {
       const th = document.createElement('th'); th.textContent = label; htr.appendChild(th);
     });
     thead.appendChild(htr); table.appendChild(thead);
@@ -5016,14 +5016,14 @@
       contentEl.appendChild(buildCounterpartTable(
         `${p.displayName}'s borrowers`,
         `Every borrower they've lent to, ranked by loans together (top ${p.lenderSummary.top_others.length} of ${p.lenderSummary.unique_others}).`,
-        p.lenderSummary.top_others, 'Borrower'
+        p.lenderSummary.top_others, 'Borrower', 'Est. Profit'
       ));
     }
     if (p.borrowerSummary && p.borrowerSummary.top_others.length) {
       contentEl.appendChild(buildCounterpartTable(
         `${p.displayName}'s lenders`,
         `Every lender they've borrowed from, ranked by loans together (top ${p.borrowerSummary.top_others.length} of ${p.borrowerSummary.unique_others}).`,
-        p.borrowerSummary.top_others, 'Lender'
+        p.borrowerSummary.top_others, 'Lender', 'Interest Paid'
       ));
     }
 
