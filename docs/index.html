@@ -232,7 +232,7 @@
   h1 { font-size: 25px; font-weight: 800; letter-spacing: -0.015em; margin: 0; }
   .header-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
   .header-logo { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; object-fit: contain; }
-  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 10px; overflow-wrap: break-word; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 10px; overflow-wrap: break-word; max-width: 720px; }
   .dataset-badge {
     display: inline-flex;
     align-items: center;
@@ -357,7 +357,7 @@
   }
   .card:hover { box-shadow: 0 4px 18px rgba(23,23,15,0.05); }
   .card h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 2px; }
-  .card .card-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; }
+  .card .card-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px; max-width: 720px; }
   .section-heading {
     font-size: 13px;
     font-weight: 700;
@@ -461,7 +461,7 @@
   .chart-download-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 
   .digest-headline { margin: 0 0 10px; font-weight: 600; color: var(--text-primary); }
-  .digest-list { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; line-height: 1.8; }
+  .digest-list { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; line-height: 1.8; max-width: 720px; }
   .digest-list li::marker { color: var(--text-muted); }
 
   .target-block { margin-bottom: 16px; }
@@ -622,7 +622,7 @@
     gap: 6px;
   }
   .detail-panel .dp-head h3 { font-size: 13.5px; margin: 0; font-weight: 600; }
-  .detail-panel .dp-head .dp-sub { font-size: 12px; color: var(--text-muted); }
+  .detail-panel .dp-head .dp-sub { font-size: 12px; color: var(--text-muted); max-width: 720px; }
   table.detail-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   table.detail-table th {
     text-align: right; font-weight: 500; color: var(--text-muted); font-size: 11px;
@@ -657,7 +657,7 @@
   .profile-back-btn:hover { color: var(--series-1); }
   .profile-header-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
   .profile-header-row h2 { margin: 0; font-size: 19px; }
-  .profile-sub { font-size: 12.5px; color: var(--text-muted); }
+  .profile-sub { font-size: 12.5px; color: var(--text-muted); max-width: 720px; }
   .profile-role-badge {
     display: inline-flex; align-items: center; font-size: 11px; font-weight: 600;
     padding: 3px 10px; border-radius: 20px;
@@ -666,7 +666,7 @@
   .profile-role-badge.warn { background: rgba(208,59,59,0.12); color: #d03b3b; }
   .profile-role-badge.accent2 { background: var(--series-2-wash); color: var(--series-2); }
   .profile-role-badge.muted { background: var(--gridline); color: var(--text-secondary); }
-  .profile-empty { padding: 6px 0; color: var(--text-muted); font-size: 13.5px; }
+  .profile-empty { padding: 6px 0; color: var(--text-muted); font-size: 13.5px; max-width: 720px; }
 
   /* ---------- Loyalty tab: one-and-done borrowers ---------- */
   .pm-chip {
@@ -754,6 +754,7 @@
     color: var(--text-muted);
     line-height: 1.6;
     margin-top: 8px;
+    max-width: 720px;
   }
   footer.notes b { color: var(--text-secondary); }
 
@@ -795,9 +796,9 @@
     padding: 18px 20px;
   }
   .periscope-reveal.show { animation: fadeSlideUp 0.35s ease both; }
-  .periscope-reveal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
-  .periscope-reveal-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
-  .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 4px 0; }
+  .periscope-reveal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; max-width: 720px; }
+  .periscope-reveal-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 720px; }
+  .periscope-empty { font-size: 13.5px; color: var(--text-muted); padding: 4px 0; max-width: 720px; }
 
   .periscope-reveal-loading { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
   .periscope-reveal-loading-dot {
