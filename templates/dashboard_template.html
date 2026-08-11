@@ -1315,6 +1315,16 @@
         <input type="number" id="filter-loans-min" placeholder="Min $" class="range-select" style="width:90px; padding:7px 10px;" />
         <span class="hint">–</span>
         <input type="number" id="filter-loans-max" placeholder="Max $" class="range-select" style="width:90px; padding:7px 10px;" />
+        <label class="hint" for="filter-loans-history">Borrower</label>
+        <select id="filter-loans-history" class="range-select">
+          <option value="" selected>All</option>
+          <option value="new">New only</option>
+          <option value="existing">Existing only</option>
+        </select>
+        <select id="filter-loans-frequent" class="range-select">
+          <option value="" selected>Any activity</option>
+          <option value="frequent">Frequent only</option>
+        </select>
         <button id="filter-loans-clear" type="button">Clear filters</button>
       </div>
       <div class="filter-row">
@@ -2516,6 +2526,7 @@
     let sortKey = 't', sortDir = -1;
     let lenderFilter = '', borrowerFilter = '';
     let minAmount = null, maxAmount = null;
+    let historyFilter = '', frequentFilter = '';
     let list = [];
     let pageSize = 50;
     let currentPage = 1;
@@ -2525,6 +2536,8 @@
     const borrowerFilterEl = document.getElementById('filter-loans-borrower');
     const minAmountEl = document.getElementById('filter-loans-min');
     const maxAmountEl = document.getElementById('filter-loans-max');
+    const historyFilterEl = document.getElementById('filter-loans-history');
+    const frequentFilterEl = document.getElementById('filter-loans-frequent');
     const clearBtn = document.getElementById('filter-loans-clear');
     const countEl = document.getElementById('count-loans');
     const totalEl = document.getElementById('total-loans');
@@ -2547,7 +2560,9 @@
         x.l.toLowerCase().includes(lTerm) &&
         x.b.toLowerCase().includes(bTerm) &&
         (minAmount == null || x.p >= minAmount) &&
-        (maxAmount == null || x.p <= maxAmount)
+        (maxAmount == null || x.p <= maxAmount) &&
+        (historyFilter === '' || (historyFilter === 'new' ? x.borrowerLoanNum === 1 : x.borrowerLoanNum > 1)) &&
+        (frequentFilter === '' || x.borrowerFrequent)
       );
       rows.sort((a, b) => {
         const av = a[sortKey], bv = b[sortKey];
@@ -2628,9 +2643,13 @@
     borrowerFilterEl.addEventListener('input', ev => { borrowerFilter = ev.target.value; currentPage = 1; renderTable(); });
     minAmountEl.addEventListener('input', ev => { minAmount = ev.target.value === '' ? null : Number(ev.target.value); currentPage = 1; renderTable(); });
     maxAmountEl.addEventListener('input', ev => { maxAmount = ev.target.value === '' ? null : Number(ev.target.value); currentPage = 1; renderTable(); });
+    historyFilterEl.addEventListener('change', ev => { historyFilter = ev.target.value; currentPage = 1; renderTable(); });
+    frequentFilterEl.addEventListener('change', ev => { frequentFilter = ev.target.value; currentPage = 1; renderTable(); });
     clearBtn.addEventListener('click', () => {
       lenderFilterEl.value = ''; borrowerFilterEl.value = ''; minAmountEl.value = ''; maxAmountEl.value = '';
+      historyFilterEl.value = ''; frequentFilterEl.value = '';
       lenderFilter = ''; borrowerFilter = ''; minAmount = null; maxAmount = null;
+      historyFilter = ''; frequentFilter = '';
       currentPage = 1;
       renderTable();
     });
