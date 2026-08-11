@@ -35,6 +35,8 @@
     --seq-100: #dfeae3; --seq-200: #b9d6c6; --seq-300: #8fbfa9;
     --seq-400: #5c9986; --seq-450: #3d7a67; --seq-500: #2a6152; --seq-600: #1e4d40;
     --good: #2e7d4f;
+    --good-wash: rgba(46,125,79,0.10);
+    --muted-wash: rgba(88,86,76,0.10);
     /* Tooltip stays visually dark regardless of page theme — deliberately not tied to
        --text-primary/--surface-1, which flip meaning between themes. */
     --tooltip-bg: #17170f;
@@ -58,6 +60,8 @@
     --seq-100: #1e2b26; --seq-200: #234339; --seq-300: #2b6152;
     --seq-400: #34816d; --seq-450: #3fa088; --seq-500: #4ec2a4; --seq-600: #6adcbc;
     --good: #4fbf7d;
+    --good-wash: rgba(79,191,125,0.16);
+    --muted-wash: rgba(180,176,161,0.14);
   }
 
   * { box-sizing: border-box; }
@@ -476,6 +480,11 @@
   .ongoing-status-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .ongoing-status-chip.overdue { background: var(--series-2-wash); color: var(--series-2); }
   .ongoing-status-chip.upcoming { background: var(--series-1-wash); color: var(--series-1); }
+  .borrower-chip-wrap { display: flex; gap: 4px; flex-wrap: wrap; white-space: normal; margin-top: 2px; }
+  .borrower-chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+  .borrower-chip.chip-new { background: var(--muted-wash); color: var(--text-secondary); }
+  .borrower-chip.chip-existing { background: var(--series-1-wash); color: var(--series-1); }
+  .borrower-chip.chip-frequent { background: var(--good-wash); color: var(--good); }
 
   svg text { font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
   .bar-label-value { fill: var(--text-primary); font-weight: 600; }
@@ -1327,6 +1336,7 @@
             <th data-key="t">Date &amp; time funded</th>
             <th data-key="l" style="text-align:left">Lender</th>
             <th data-key="b" style="text-align:left">Borrower</th>
+            <th data-key="borrowerLoanNum" style="text-align:left">Borrower History</th>
             <th data-key="p">Amount</th>
             <th data-key="f">Interest %</th>
             <th data-key="profit">Profit $</th>
@@ -1612,6 +1622,29 @@
   const withProfit = x => { x.profit = x.f != null ? x.p * x.f / 100 : null; return x; };
   RAW.loans.forEach(withProfit);
   (RAW.loyalty || []).forEach(withProfit);
+  // Borrower history tags (Loans table): New = a borrower's first-ever loan; Existing = their Nth,
+  // counted chronologically across their FULL history, independent of whatever date range is
+  // currently filtered. "Frequent" is a separate signal — 3+ loans inside a trailing 90-day window
+  // — flagging currently-active repeat borrowers, not just "has borrowed before at some point."
+  // Grouped case-insensitively to match how computeProfile() already merges a borrower's records.
+  (function tagBorrowerHistory() {
+    const FREQUENT_WINDOW_DAYS = 90, FREQUENT_MIN_LOANS = 3;
+    const byBorrower = new Map();
+    RAW.loans.forEach(x => {
+      if (!x.b) return;
+      const key = x.b.toLowerCase();
+      if (!byBorrower.has(key)) byBorrower.set(key, []);
+      byBorrower.get(key).push(x);
+    });
+    byBorrower.forEach(list => {
+      list.sort((a, b) => a.t - b.t);
+      list.forEach((x, i) => {
+        x.borrowerLoanNum = i + 1;
+        const windowStart = x.t - FREQUENT_WINDOW_DAYS * 86400;
+        x.borrowerFrequent = list.filter(y => y.t <= x.t && y.t >= windowStart).length >= FREQUENT_MIN_LOANS;
+      });
+    });
+  })();
   // Currency toggle: every $ figure across the dashboard flows through fmtMoney, so switching
   // displayCurrency + reusing the FX ticker's live rate here converts everything in one place.
   let displayCurrency = 'USD';
@@ -1631,6 +1664,10 @@
   };
   const avg = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
   const truncateLabel = (text, maxChars) => text.length > maxChars ? text.slice(0, maxChars - 1) + '…' : text;
+  const ordinal = n => {
+    const suf = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (suf[(v - 20) % 10] || suf[v] || suf[0]);
+  };
 
   // ---------- Export helpers: CSV for tables, PNG for SVG charts ----------
   function csvCell(v) {
@@ -2534,6 +2571,24 @@
         tr.appendChild(lTd);
         const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b));
         tr.appendChild(bTd);
+        const histTd = document.createElement('td'); histTd.className = 'name-cell';
+        const chipWrap = document.createElement('div'); chipWrap.className = 'borrower-chip-wrap';
+        const histChip = document.createElement('span');
+        if (x.borrowerLoanNum === 1) {
+          histChip.className = 'borrower-chip chip-new';
+          histChip.textContent = 'New';
+        } else {
+          histChip.className = 'borrower-chip chip-existing';
+          histChip.textContent = `Existing · ${ordinal(x.borrowerLoanNum)} loan`;
+        }
+        chipWrap.appendChild(histChip);
+        if (x.borrowerFrequent) {
+          const freqChip = document.createElement('span'); freqChip.className = 'borrower-chip chip-frequent';
+          freqChip.textContent = 'Frequent';
+          chipWrap.appendChild(freqChip);
+        }
+        histTd.appendChild(chipWrap);
+        tr.appendChild(histTd);
         [fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', fmtMoney(x.profit), x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No']
           .forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
         const postTd = document.createElement('td');
@@ -2596,8 +2651,12 @@
       const headers = [...tableEl.querySelectorAll('thead th')].map(th => {
         const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
       });
+      headers.splice(headers.indexOf('Borrower History') + 1, 0, 'Frequent Borrower');
       const rows = lastFilteredRows.map(x => [
-        fmtDateTime(x.t), x.l, x.b, fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', fmtMoney(x.profit),
+        fmtDateTime(x.t), x.l, x.b,
+        x.borrowerLoanNum === 1 ? 'New' : `Existing · ${ordinal(x.borrowerLoanNum)} loan`,
+        x.borrowerFrequent ? 'Yes' : 'No',
+        fmtMoney(x.p), x.f != null ? fmtPct(x.f) : '—', fmtMoney(x.profit),
         x.d != null ? fmtDays(x.d) + ' days' : '—', x.r === 1 ? 'Yes' : 'No',
         x.u ? 'https://www.reddit.com/r/borrow/comments/' + x.u + '/' : '—',
       ]);
