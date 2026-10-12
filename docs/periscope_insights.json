@@ -1,14 +1,13 @@
 {
-  "generated_at": "2026-10-11T01:43:21Z",
-  "headline": "H0mo_fuge broke its own silence with an $800 loan on Oct 9, ending the 6-day freeze flagged yesterday -- but it's still sitting on a 225-loan book that's 92.9% unpaid.",
+  "generated_at": "2026-10-12T01:45:08Z",
+  "headline": "A $40 loan on r/borrow carried a 150% fee -- the most extreme rate on record, and it's part of a pattern: every triple-digit-fee loan in the dataset is under $1,000.",
   "insights": [
-    {"title": "H0mo_fuge lends again after a 6-day gap", "body": "After going quiet from Oct 3 to Oct 9, H0mo_fuge issued one new $800 loan -- its only new loan in the last 7 days. The book is now 225 loans worth $90,790, with just 16 ever repaid (7.1%); one loan doesn't dent a dead book."},
-    {"title": "hiddenscreen adds 3 more loans, repays none", "body": "Up from 98 to 101 loans ($18,470 total) in a day, with zero new repayments -- still only 5 loans ever repaid (5.0%). It remains the single worst active lending book on the platform, and it's still growing."},
-    {"title": "Borrower race decided: AffectionateFun4298 pulls ahead", "body": "A new loan on Oct 10 put AffectionateFun4298 at 42 loans taken, clear of Rootman626's 40. Rootman626 hasn't borrowed in 82 days (since Jul 21), so barring a late surge this race looks over."},
-    {"title": "Biggest loan on record: $15,000, no fee attached", "body": "RogueDragon1 lent ChoppinLords $15,000 on Sep 8 -- 2.5x the next-largest loan ever recorded ($6,000) and fully repaid in 18 days. Unusually, it carries no stated fee at all, a rarity at this size."},
-    {"title": "10thGroupA keeps doubling down on one borrower", "body": "Five straight loans to brum21, each bigger than the last -- $1,000, $2,000, $2,500, $5,500, then $6,000 -- with the first four fully repaid. The $6,000 loan from Jul 21 isn't due until Oct 26, so the streak hasn't actually been tested yet."},
-    {"title": "Overdue backlog creeps up again: $547,912", "body": "1,423 loans are now past their stated duration and still unrepaid, up from 1,417 loans worth $546,797 a day earlier by the same measure. Small move, but it's still climbing, not shrinking."},
-    {"title": "Steady week: 241 new loans, $84,840", "body": "That's up slightly from 222 loans ($81,122) the week before. Platform-wide repayment rate holds at 75.2% across 8,543 loans totaling $2,787,220 -- up 63 loans and $22,838 since yesterday's check."},
-    {"title": "Fee rates: nothing moving here", "body": "The trailing 7 days average 20.3% across 130 priced loans, close to the 20.9% all-time average across 4,195 priced loans. A quiet corner of the data two days running."}
+    {"title": "The three priciest loans ever are all tiny", "body": "Apprehensive-One-586 charged 150.0% on a $40 loan to Clarkelthekat (repaid). The next two steepest -- 138.4% on an $850 loan and 128.6% on a $350 loan -- are also both under $1,000. Desperation-sized loans carry the most desperate rates."},
+    {"title": "Borrower race over: AffectionateFun4298 pulls to 43-40", "body": "A $20 loan from SuperSecretSpare on Oct 12 widened the gap over Rootman626, who hasn't taken a loan in 83 days (since Jul 21). This one looks settled for good."},
+    {"title": "Yesterday's problem accounts go quiet again", "body": "H0mo_fuge's one-off $800 loan was its last -- no activity since Oct 10, book still frozen at 225 loans and 7.1% repaid. hiddenscreen hasn't moved either: flat at 101 loans, $18,470, still just 5 ever repaid (5.0%)."},
+    {"title": "Busiest day on record: Sep 6, 146 loans", "body": "That's nearly 3x the next-busiest day (52 loans) and the top single-day dollar total too, at $46,423. Activity was spread across normal top lenders (NoPersimmon7434, Kawdo, BCboneless) rather than one account dumping loans -- a genuine volume spike, not a bot artifact."},
+    {"title": "10 lenders, two-thirds of the market", "body": "Just 10 of the platform's 174 active lenders account for 62.8% of all loans (5,380 of 8,570) and 68.3% of all dollars lent ($1,908,112 of $2,793,506). Lending here is a concentrated business, not a broad community activity."},
+    {"title": "Overdue backlog: third straight day climbing", "body": "1,430 loans are now past their stated duration and unrepaid, worth $551,177 -- up from 1,423 loans ($547,912) yesterday and 1,417 ($546,797) the day before. Small but consistent upward creep, three checks running."},
+    {"title": "Weekly volume cools slightly, count holds", "body": "The trailing 7 days logged 240 new loans ($82,421), versus 239 loans ($88,097) the week before -- flat on count, down 6.4% on dollars. Platform-wide repayment still sits at 75.0% across all 8,570 loans ($2,793,506 total)."}
   ]
 }
