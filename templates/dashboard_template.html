@@ -1094,15 +1094,15 @@
     </div>
 
     <div class="card">
-      <h2>When do loans get requested?</h2>
+      <h2>When do loans get funded?</h2>
       <p class="card-sub">Loan volume by day of week and hour of day (IST), within the selected date range. Darker = busier.</p>
       <div class="chart-download-row"><button class="export-btn" id="download-heatmapActivity" type="button">⬇ PNG</button></div>
       <div id="heatmapActivity"></div>
     </div>
 
     <div class="card">
-      <h2>Loan requests by day of month</h2>
-      <p class="card-sub">If borrowers are mostly covering rent or waiting on a paycheck, this tends to spike around the 1st and 15th.</p>
+      <h2>Loans funded by day of month</h2>
+      <p class="card-sub">Counted by the day the lender's confirmation was posted. If borrowers are mostly covering rent or waiting on a paycheck, this tends to spike around the 1st and 15th.</p>
       <div id="chartDayOfMonth"></div>
     </div>
 
@@ -2822,7 +2822,9 @@
         if (weekend.length >= 3 && weekday.length >= 3) {
           const wdAvg = avg(weekday.map(x => x.p)), weAvg = avg(weekend.map(x => x.p));
           const bigger = weAvg > wdAvg ? 'weekend' : 'weekday';
-          const diffPct = wdAvg ? Math.abs((weAvg - wdAvg) / wdAvg * 100) : 0;
+          // "X% higher" is measured against the smaller average, whichever side is bigger.
+          const lowerAvg = Math.min(weAvg, wdAvg);
+          const diffPct = lowerAvg ? Math.abs(weAvg - wdAvg) / lowerAvg * 100 : 0;
           items.push({ emoji: '📅', title: `${bigger === 'weekend' ? 'Weekends' : 'Weekdays'} run bigger`, body: `Average loan size is ${diffPct.toFixed(0)}% higher ${bigger === 'weekend' ? 'on weekends' : 'on weekdays'} (${fmtMoney(weAvg)} vs ${fmtMoney(wdAvg)}).` });
         }
       }
@@ -3549,6 +3551,11 @@
     let currentPage = 1;
     let lastFilteredRows = [];
     const list = RAW.unpaid;
+    // Flagged loans can be in GBP / CAD / EUR / AUD. fmtMoney assumes USD (and the INR toggle converts
+    // from USD), so a non-USD amount is shown as-is in its own currency instead of as "$80 CAD".
+    const fmtUnpaidAmount = x => (!x.c || x.c === 'USD')
+      ? fmtMoney(x.p)
+      : `${Math.round(x.p).toLocaleString()} ${x.c}`;
 
     const searchEl = document.getElementById('search-unpaid');
     const countEl = document.getElementById('count-unpaid');
@@ -3584,7 +3591,7 @@
         const bTd = document.createElement('td'); bTd.className = 'name-cell'; bTd.appendChild(makeNameLink(x.b));
         tr.appendChild(bTd);
         const amountTd = document.createElement('td');
-        amountTd.textContent = fmtMoney(x.p) + (x.c && x.c !== 'USD' ? ` ${x.c}` : '');
+        amountTd.textContent = fmtUnpaidAmount(x);
         tr.appendChild(amountTd);
         const dateTd = document.createElement('td'); dateTd.textContent = fmtDate(x.t);
         tr.appendChild(dateTd);
@@ -3640,7 +3647,7 @@
         const c = th.cloneNode(true); c.querySelector('.arrow')?.remove(); return c.textContent.trim();
       });
       const rows = lastFilteredRows.map(x => [
-        x.l, x.b, fmtMoney(x.p) + (x.c && x.c !== 'USD' ? ` ${x.c}` : ''), fmtDate(x.t),
+        x.l, x.b, fmtUnpaidAmount(x), fmtDate(x.t),
         x.u ? 'https://www.reddit.com/r/borrow/comments/' + x.u + '/' : '—',
       ]);
       downloadRowsAsCSV('unpaid_loans', headers, rows);
@@ -4396,18 +4403,42 @@
   function renderTrend() {
     const el = document.getElementById('trendChart');
     const data = currentTrend;
-    const projectedVal = showProjection ? computeProjection(data) : null;
+    // The chart is anchored to the newest data point, so its last bucket (today / this month) is still
+    // filling in. Fitting a trend through that half-finished bucket drags the projection far too low
+    // (e.g. ~190 "next month" when the real pace is ~700). So when the window runs up to the newest
+    // data, project from completed periods only and show it as this period's expected full total,
+    // drawn at the unfinished bucket's own position.
+    const lastIsPartial = !!currentWindow && currentWindow.end >= RAW.range.max_t && data.length > 2;
+    // Same problem at the other end: a window that starts mid-day / mid-month (e.g. "Last 3 months")
+    // makes its FIRST bucket partial too, which would tilt the trend upward. Leave it out as well.
+    const winStart = currentWindow ? currentWindow.start : null;
+    const spanDaysForProj = currentWindow ? (currentWindow.end - currentWindow.start) / 86400 : 0;
+    const firstIsPartial = winStart != null && (spanDaysForProj > 35
+      ? monthStartIST(winStart) < winStart - 60
+      : paceDayStartIST(winStart) < winStart - 60);
+    let projBase = lastIsPartial ? data.slice(0, -1) : data;
+    if (firstIsPartial && projBase.length > 2) projBase = projBase.slice(1);
+    const projectedVal = showProjection ? computeProjection(projBase) : null;
     if (!el.clientWidth) return; // hidden page — a later redraw (page-visit or resize) will render this at its real width instead of a guessed one
-    const W = el.clientWidth, H = 200, PAD = { l: 40, r: projectedVal != null ? 34 : 16, t: 12, b: 28 };
-    const plotCount = data.length + (projectedVal != null ? 1 : 0);
+    const W = el.clientWidth, H = 200, PAD = { l: 40, r: projectedVal != null && !lastIsPartial ? 34 : 16, t: 12, b: 28 };
+    const plotCount = data.length + (projectedVal != null && !lastIsPartial ? 1 : 0);
     const maxV = Math.max(1, ...data.map(d => d.loans), projectedVal || 0);
-    const niceMax = Math.ceil(maxV / 100) * 100 || maxV + 1;
+    // "Nice" axis top: ticks land on round numbers and short ranges (a few dozen loans a day) fill the
+    // chart instead of sitting in the bottom third of a fixed 0–100 scale.
+    const niceAxisMax = (m, nTicks) => {
+      const raw = m / nTicks, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
+      const step = ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(c => norm <= c + 1e-9) || 10) * mag;
+      return step * nTicks;
+    };
+    const niceMax = niceAxisMax(maxV, 4) || maxV + 1;
     const x = i => PAD.l + (i / Math.max(1, plotCount - 1)) * (W - PAD.l - PAD.r);
     const y = v => H - PAD.b - (v / niceMax) * (H - PAD.t - PAD.b);
 
     const hintEl = document.getElementById('projectionHint');
     if (projectedVal != null) {
-      hintEl.textContent = `Next period projected: ~${projectedVal.toLocaleString()} loans (simple trend from the last ${Math.min(6, data.length)} periods — not a forecast model, just a linear read of recent momentum)`;
+      hintEl.textContent = lastIsPartial
+        ? `This period is projected to finish at ~${projectedVal.toLocaleString()} loans (so far: ${data[data.length - 1].loans.toLocaleString()}). Simple trend from the last ${Math.min(6, projBase.length)} completed periods — not a forecast model, just a linear read of recent momentum.`
+        : `Next period projected: ~${projectedVal.toLocaleString()} loans (simple trend from the last ${Math.min(6, projBase.length)} periods — not a forecast model, just a linear read of recent momentum)`;
     } else {
       hintEl.textContent = '';
     }
@@ -4473,8 +4504,10 @@
     });
 
     if (projectedVal != null) {
-      const lastIdx = data.length - 1;
-      const projIdx = data.length;
+      // Partial last bucket: the projection marks that same bucket's expected full total, drawn from the
+      // last completed period. Otherwise it sits one slot to the right as "Next".
+      const lastIdx = lastIsPartial ? data.length - 2 : data.length - 1;
+      const projIdx = lastIsPartial ? data.length - 1 : data.length;
       const projLine = document.createElementNS(svg.namespaceURI, 'path');
       projLine.setAttribute('d', `M ${x(lastIdx)} ${y(data[lastIdx].loans)} L ${x(projIdx)} ${y(projectedVal)}`);
       projLine.setAttribute('class', 'trend-line-projected');
@@ -4488,18 +4521,20 @@
       pHit.setAttribute('cx', x(projIdx)); pHit.setAttribute('cy', y(projectedVal)); pHit.setAttribute('r', 14);
       pHit.setAttribute('fill', 'transparent'); pHit.style.cursor = 'pointer';
       pHit.addEventListener('pointermove', ev => {
-        showTooltip(ev.clientX, ev.clientY, 'Next (projected)', [
+        showTooltip(ev.clientX, ev.clientY, lastIsPartial ? `${data[data.length - 1].label} (projected full total)` : 'Next (projected)', [
           ['Projected loans', projectedVal.toLocaleString()],
         ]);
       });
       pHit.addEventListener('pointerleave', hideTooltip);
       svg.appendChild(pHit);
 
-      const pTxt = document.createElementNS(svg.namespaceURI, 'text');
-      pTxt.setAttribute('x', x(projIdx)); pTxt.setAttribute('y', H - 8);
-      pTxt.setAttribute('text-anchor', 'middle'); pTxt.setAttribute('font-size', '10.5');
-      pTxt.textContent = 'Next';
-      svg.appendChild(pTxt);
+      if (!lastIsPartial) {
+        const pTxt = document.createElementNS(svg.namespaceURI, 'text');
+        pTxt.setAttribute('x', x(projIdx)); pTxt.setAttribute('y', H - 8);
+        pTxt.setAttribute('text-anchor', 'middle'); pTxt.setAttribute('font-size', '10.5');
+        pTxt.textContent = 'Next';
+        svg.appendChild(pTxt);
+      }
     }
 
     svg.style.animation = 'fadeIn 0.35s ease both';
@@ -4572,7 +4607,7 @@
         rect.style.animation = `cellPop 0.3s ease both ${Math.min((row * 24 + hr) * 3, 350)}ms`;
         rect.addEventListener('pointermove', ev => {
           showTooltip(ev.clientX, ev.clientY, `${label}, ${hr}:00–${(hr + 1) % 24}:00 IST`, [
-            ['Loans requested', count.toLocaleString()],
+            ['Loans funded', count.toLocaleString()],
           ]);
         });
         rect.addEventListener('pointerleave', hideTooltip);
@@ -4638,7 +4673,7 @@
       rect.setAttribute('class', 'col-chart-bar');
       rect.style.animation = `growBarY 0.4s ease both ${Math.min(i * 10, 250)}ms`;
       rect.addEventListener('pointermove', ev => {
-        showTooltip(ev.clientX, ev.clientY, `Day ${i + 1} of month`, [['Loans requested', count.toLocaleString()]]);
+        showTooltip(ev.clientX, ev.clientY, `Day ${i + 1} of month`, [['Loans funded', count.toLocaleString()]]);
       });
       rect.addEventListener('pointerleave', hideTooltip);
       svg.appendChild(rect);
