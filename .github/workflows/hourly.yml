@@ -27,9 +27,12 @@ jobs:
         run: pip install --quiet python-dateutil
 
       - name: Run pipeline
+        id: pipeline
         run: python3 scripts/hourly_update.py
         env:
           NOCODB_API_TOKEN: ${{ secrets.NOCODB_API_TOKEN }}
+          # Optional: add a DISCORD_WEBHOOK_URL repo secret to also get data-health alerts in Discord.
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Commit and push if changed
         run: |
@@ -50,3 +53,12 @@ jobs:
         run: gh workflow run pages-deploy.yml
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Fail the run if the data-health check raised a new alert
+        # Runs last so the dashboard still updates and deploys first. A failed run makes GitHub
+        # email the repo owner. The pipeline only sets this output once per day while a problem lasts.
+        if: steps.pipeline.outputs.health_alert == 'true'
+        run: |
+          echo "Data health problem - see data/health.json"
+          cat data/health.json
+          exit 1

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import statistics
 import subprocess
 import sys
 import time
@@ -518,14 +519,87 @@ def build_dashboard_data(loans):
     return data_str
 
 
-def build_dashboard_html(data_str, last_updated_label):
+def build_dashboard_html(data_str, last_updated_label, health_banner=""):
     tpl = (TEMPLATES / "dashboard_template.html").read_text()
     auth_hash = AUTH_HASH_PATH.read_text().strip()
     out = (tpl.replace("__DASHBOARD_DATA__", data_str)
               .replace("__AUTH_HASH__", auth_hash)
-              .replace("__LAST_UPDATED__", last_updated_label))
+              .replace("__LAST_UPDATED__", last_updated_label)
+              .replace("__HEALTH_BANNER__", health_banner))
     DOCS_DIR.mkdir(exist_ok=True)
     DASHBOARD_HTML_PATH.write_text(out)
+
+
+# ---------- Data health check ----------
+# Added after a fetch bug silently dropped ~580 loans for 3+ weeks while every hourly run reported
+# success. This flags two symptoms: no new loans for too long, or volume far below the recent norm.
+HEALTH_PATH = DATA / "health.json"
+STALE_HOURS = 24            # newest loan older than this => stale (longest healthy gap seen: 13h)
+VOLUME_RATIO = 0.3          # last 24h below this share of the recent daily median => low
+MIN_BASELINE = 8            # skip the volume test if the recent daily median is below this
+BASELINE_DAYS = 90         # long baseline so a multi-week outage cannot drag the norm down with it
+ALERT_REPEAT_HOURS = 24     # re-alert (once per day) while the problem persists
+
+
+def check_health(loans, now):
+    """Return a list of human-readable problems; empty list means healthy."""
+    times = [l["created_utc"] for l in loans if l.get("created_utc")]
+    if not times:
+        return ["The loan archive is empty."]
+    reasons = []
+    age_h = (now - max(times)) / 3600
+    if age_h > STALE_HOURS:
+        reasons.append(f"No new loan has been recorded for {age_h:.0f} hours.")
+    day = 86400
+    last24 = sum(1 for t in times if now - day < t <= now)
+    daily = [sum(1 for t in times if now - (i + 1) * day < t <= now - i * day) for i in range(1, BASELINE_DAYS + 1)]
+    median = statistics.median(daily)
+    if median >= MIN_BASELINE and last24 < VOLUME_RATIO * median:
+        reasons.append(f"Only {last24} loans in the last 24 hours, against a typical {median:.0f} a day.")
+    return reasons
+
+
+def health_banner_html(reasons):
+    if not reasons:
+        return ""
+    items = " ".join(reasons).replace("&", "&amp;").replace("<", "&lt;")
+    return ('<div role="alert" style="margin:0 0 12px;padding:10px 14px;border-radius:8px;'
+            'background:#fff3cd;color:#664d03;border:1px solid #ffda6a;font-size:14px;line-height:1.4;">'
+            '<strong>Data may be incomplete.</strong> ' + items +
+            ' Numbers below could be missing recent loans.</div>')
+
+
+def handle_health(reasons, state, now):
+    """Update state['health'], write data/health.json, and decide whether to alert.
+    Alerts fire on a healthy->unhealthy change and then at most once per ALERT_REPEAT_HOURS.
+    Returns True when an alert should be sent now."""
+    prev = state.get("health") or {"ok": True, "last_alert_utc": 0}
+    ok = not reasons
+    should_alert = (not ok) and (prev.get("ok", True) or now - prev.get("last_alert_utc", 0) >= ALERT_REPEAT_HOURS * 3600)
+    recovered = ok and not prev.get("ok", True)
+    state["health"] = {"ok": ok, "last_alert_utc": now if should_alert else prev.get("last_alert_utc", 0)}
+    HEALTH_PATH.write_text(json.dumps({"checked_utc": now, "ok": ok, "reasons": reasons}, indent=2))
+
+    message = None
+    if should_alert:
+        message = "Reddit Borrow dashboard data problem: " + " ".join(reasons)
+    elif recovered:
+        message = "Reddit Borrow dashboard data is healthy again."
+    url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if message and url:
+        try:
+            req = urllib.request.Request(
+                url, data=json.dumps({"content": message}).encode("utf-8"),
+                headers={"Content-Type": "application/json", "User-Agent": UA})
+            urllib.request.urlopen(req, timeout=15).close()
+        except Exception as e:  # an alert failure must never break the pipeline
+            print(f"  health webhook failed: {e}", flush=True)
+    gh_out = os.environ.get("GITHUB_OUTPUT")
+    if gh_out:
+        with open(gh_out, "a") as f:
+            f.write(f"health_alert={'true' if should_alert else 'false'}\n")
+    print(f"Health: {'OK' if ok else 'PROBLEM - ' + ' '.join(reasons)}", flush=True)
+    return should_alert
 
 
 def main():
@@ -589,10 +663,19 @@ def main():
     print("Rebuilding dashboard_data_v2.json...", flush=True)
     data_str = build_dashboard_data(loans)
 
+    banner = ""
+    try:
+        reasons = check_health(loans, now)
+        banner = health_banner_html(reasons)
+        handle_health(reasons, state, now)
+        STATE_PATH.write_text(json.dumps(state, indent=2))
+    except Exception as e:  # the health check must never stop the dashboard from updating
+        print(f"  health check failed (ignored): {e}", flush=True)
+
     print("Rebuilding dashboard.html...", flush=True)
     IST = timezone(timedelta(hours=5, minutes=30))
     last_updated_label = "Data last refreshed: " + datetime.now(IST).strftime("%b %d, %Y %H:%M IST")
-    build_dashboard_html(data_str, last_updated_label)
+    build_dashboard_html(data_str, last_updated_label, banner)
 
     print(f"DONE. new_events={len(new_records)} total_loans={len(loans)} last_cursor={state['last_cursor']}", flush=True)
 
