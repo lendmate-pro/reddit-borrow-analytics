@@ -41,7 +41,10 @@ NOCODB_TABLE_ID = "m9h75iwh6ausebz"
 # Only these fields are ever requested or forwarded to the public dashboard — the table also has a
 # linked "borrower" record with the borrower's real name, which must never reach the public site.
 NOCODB_FIELDS = "Lender,loan_status,principle_amount,total_repay_amount,loan_start_date,loan_end_date,url,Payments"
-UA = "Mozilla/5.0 (research; contact jyoth.antony@gmail.com)"
+UA = "Mozilla/5.0 (research)"
+# Arctic Shift indexes new comments with a delay. Re-fetching a trailing window on every run (already
+# de-duplicated by comment_id below) means late-indexed loans are picked up instead of skipped forever.
+LOOKBACK_SECONDS = 3 * 24 * 3600
 
 CREATE_RE = re.compile(
     r"Noted! I will remember that /u/(?P<lender>\S+) lent (?P<amount>[\d,]+\.\d{2}) USD to /u/(?P<borrower>\S+)"
@@ -530,8 +533,9 @@ def main():
     last_cursor = state["last_cursor"]
     now = int(time.time())
 
-    print(f"Fetching new comments from {last_cursor} to {now}...", flush=True)
-    new_records, new_unpaid_rows = fetch_new_comments(last_cursor, now)
+    fetch_from = last_cursor - LOOKBACK_SECONDS
+    print(f"Fetching new comments from {fetch_from} (cursor {last_cursor} minus lookback) to {now}...", flush=True)
+    new_records, new_unpaid_rows = fetch_new_comments(fetch_from, now)
     print(f"New matched loan events: {len(new_records)}, new unpaid-flag rows seen: {len(new_unpaid_rows)}", flush=True)
 
     if new_unpaid_rows:
