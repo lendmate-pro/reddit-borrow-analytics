@@ -43,6 +43,8 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Hourly update: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            # The daily activity job can push at the same moment; rebase onto it instead of failing.
+            git pull --rebase origin main
             git push
           fi
 

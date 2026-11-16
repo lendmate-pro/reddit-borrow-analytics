@@ -5111,7 +5111,11 @@
 
   function currentProfileUsernameFromHash() {
     const raw = (location.hash || '').replace(/^#/, '');
-    return raw.startsWith('profile/') ? decodeURIComponent(raw.slice('profile/'.length)) : null;
+    if (!raw.startsWith('profile/')) return null;
+    const rest = raw.slice('profile/'.length);
+    // A hand-typed or truncated link like #profile/%E0%A4%A is malformed and makes decodeURIComponent throw;
+    // fall back to the raw text so the page shows "no loans found" instead of crashing and keeping the last profile.
+    try { return decodeURIComponent(rest); } catch (e) { return rest; }
   }
 
   function showPage(page, opts) {

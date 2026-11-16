@@ -27,7 +27,7 @@ CACHE_PATH = DATA / "reddit_activity_cache.json"
 LOYALTY_WINDOW_DAYS = 182
 BASE_COMMENTS = "https://arctic-shift.photon-reddit.com/api/comments/search"
 BASE_POSTS = "https://arctic-shift.photon-reddit.com/api/posts/search"
-UA = "Mozilla/5.0 (research; contact jyoth.antony@gmail.com)"
+UA = "Mozilla/5.0 (research)"
 
 
 def loyalty_borrowers():

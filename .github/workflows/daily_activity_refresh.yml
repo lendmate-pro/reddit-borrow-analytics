@@ -37,5 +37,7 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Refresh Reddit activity cache: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            # The hourly job may have pushed since checkout; rebase onto it instead of failing.
+            git pull --rebase origin main
             git push
           fi

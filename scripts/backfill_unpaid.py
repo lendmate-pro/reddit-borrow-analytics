@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "data" / "unpaid_flags.jsonl"
 
 BASE_COMMENTS = "https://arctic-shift.photon-reddit.com/api/comments/search"
-UA = "Mozilla/5.0 (research; contact jyoth.antony@gmail.com)"
+UA = "Mozilla/5.0 (research)"
 
 INFO_RE = re.compile(r"Here is my information on /u/(?P<user>\S+):")
 UNPAID_ROW_RE = re.compile(
