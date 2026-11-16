@@ -609,7 +609,15 @@ def main():
 
     fetch_from = last_cursor - LOOKBACK_SECONDS
     print(f"Fetching new comments from {fetch_from} (cursor {last_cursor} minus lookback) to {now}...", flush=True)
-    new_records, new_unpaid_rows = fetch_new_comments(fetch_from, now)
+    fetch_failed = False
+    try:
+        new_records, new_unpaid_rows = fetch_new_comments(fetch_from, now)
+    except RuntimeError as e:
+        # Arctic Shift outage: keep existing data and the cursor, and let the next run (which re-fetches
+        # a 3-day lookback) catch up. The data-health check below alerts if this lasts for a day.
+        print(f"WARNING: Arctic Shift unreachable ({e}); keeping existing data, will retry next run.", flush=True)
+        fetch_failed = True
+        new_records, new_unpaid_rows = [], []
     print(f"New matched loan events: {len(new_records)}, new unpaid-flag rows seen: {len(new_unpaid_rows)}", flush=True)
 
     if new_unpaid_rows:
@@ -650,7 +658,7 @@ def main():
 
         max_new_created = max(r["created_utc"] for r in new_records)
         state["last_cursor"] = max_new_created + 1
-    else:
+    elif not fetch_failed:
         state["last_cursor"] = now
 
     state["last_run_utc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
