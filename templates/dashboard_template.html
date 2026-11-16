@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>r/borrow LIVE Analytics</title>
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#eeebe2">
@@ -2088,7 +2089,7 @@
         nameTxt.setAttribute('text-anchor', 'end'); nameTxt.setAttribute('font-size', '12.5');
         nameTxt.setAttribute('class', 'bar-label-name');
         const rankPrefix = `${i + 1}. `;
-        nameTxt.textContent = `${rankPrefix}${truncateLabel(d.name, Math.max(6, Math.floor(labelW / 7) - rankPrefix.length))}`;
+        nameTxt.textContent = `${rankPrefix}${truncateLabel(d.name, Math.max(6, Math.floor((labelW - 10) / 7.6) - rankPrefix.length))}`;
         svg.appendChild(nameTxt);
 
         const rect = document.createElementNS(svg.namespaceURI, 'rect');
@@ -2375,7 +2376,7 @@
         nameTxt.setAttribute('class', 'bar-label-name');
         const rankPrefix = `${i + 1}. `;
         const sepStr = ' → ';
-        const pairChars = Math.max(8, Math.floor(labelW / 7) - rankPrefix.length - sepStr.length);
+        const pairChars = Math.max(8, Math.floor((labelW - 10) / 7.6) - rankPrefix.length - sepStr.length);
         const perNameChars = Math.max(3, Math.floor(pairChars / 2));
         nameTxt.textContent = `${rankPrefix}${truncateLabel(d.lender, perNameChars)}${sepStr}${truncateLabel(d.borrower, perNameChars)}`;
         svg.appendChild(nameTxt);
