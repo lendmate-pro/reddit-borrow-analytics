@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-11-15T01:46:54Z",
-  "headline": "The first half of November logged just 19 loans worth $6,190 -- down over 95% from the same stretch of October (405 loans, $145,655) -- the quietest two weeks this market has ever recorded.",
+  "generated_at": "2026-11-16T01:45:33Z",
+  "headline": "Borrowing costs have quietly cratered -- the average fee on new loans fell from 20.3% to 17.9% over the last 30 days, even as volume sits near an all-time low.",
   "insights": [
-    {"title": "Quietest half-month on record", "body": "Nov 1-15 saw only 19 loans worth $6,190, versus 405 loans worth $145,655 over Oct 1-15 and 469 loans worth $162,143 over Sep 1-15. Monthly volume has fallen every month since May's $380,821 peak -- this is the steepest drop yet."},
-    {"title": "H0mo_fuge breaks its longest dark streak", "body": "After 21+ days of silence -- its longest ever -- H0mo_fuge issued a new $300 loan to DrProfessorScience at 10.0% fee on Nov 14. Its lifetime book is still ugly: just 16 of 228 loans (7.0%) ever repaid, worth $92,090 lent."},
-    {"title": "hiddenscreen has the worst repay record of any major lender", "body": "103 loans, $18,820 lent, and only 5 ever repaid -- a 4.9% rate, worse than H0mo_fuge's. It also carries 8 separate unpaid-comment flags totaling $1,670, and went quiet itself 9 days ago after its last loan on Nov 5."},
-    {"title": "Weekly volume rebounds again", "body": "The trailing 7 days added 14 loans worth $5,200, up from 5 loans worth $990 the week before. It's a real bounce off the floor, but still under a quarter of the $85,904 across 237 loans this market did in just the first week of October."},
-    {"title": "24 hours, 5 loans", "body": "Only $1,675 across 5 new loans landed since yesterday's reading -- BCboneless, Jjjt22, NoPersimmon7434, H0mo_fuge, and Kawdo each wrote one. Three of the five carry no stated duration on record."},
-    {"title": "Overdue book dips for the first time in days", "body": "Loans past their stated term total 1,769 worth $692,308, down slightly from 1,780 worth $692,443 a day earlier -- a small pullback after a run of pure growth, though still 24.6% of the $2,819,944 ever lent."},
-    {"title": "Flag-silence record still unbeaten", "body": "The all-time gap between unpaid-debt comments remains 16.0 days (Oct 27 to Nov 12). The current streak since the last flag sits at just 1.1 days, nowhere near threatening the record."},
-    {"title": "Top-2 lender grip hasn't moved", "body": "BCboneless and asiandaydreamer still account for 30.2% of the $2,819,944 lent across 175 distinct lenders -- the identical share held in yesterday's reading, untouched by the quiet week."}
+    {"title": "Rates are sliding as the market shrinks", "body": "Loans written in the trailing 30 days carry an average fee of 17.9% (35 priced loans), down from 20.3% over the prior 30 days (427 priced loans). Fewer lenders are competing for borrowers, yet the ones still active are charging less, not more."},
+    {"title": "Overdue book resumes climbing", "body": "Loans past their stated term now total 1,787 worth $696,048 -- up from 1,769 worth $692,308 a day ago, erasing yesterday's brief one-day pullback. That's 24.7% of the $2,821,094 ever lent, the highest share yet recorded."},
+    {"title": "Most-flagged lender is also one of the more reliable ones", "body": "NoPersimmon7434 has 606 loans worth $103,683 on the books with an 80.0% repay rate -- solid by market standards -- yet also tops the unpaid-comment list with 39 separate flags totaling $6,215, more than any other lender."},
+    {"title": "November's collapse deepens", "body": "The first 16 days of November logged just 21 loans worth $7,340, against 405 loans ($145,655) over the same stretch of October and 469 loans ($162,143) in September. Volume is now down roughly 95% year-over-month for a second straight reading."},
+    {"title": "Weekly volume keeps climbing off the floor", "body": "The trailing 7 days added 12 loans worth $4,855, up from 9 loans worth $2,485 the week before -- essentially double the dollar volume. Still a fraction of early October's pace, but now three straight readings of growth."},
+    {"title": "A quieter 24 hours", "body": "Only $1,150 across 2 new loans landed since yesterday's reading: NoPersimmon7434 lent $500 at 20.0% and chiefwinamac lent $650 at 15.4%. Down from 5 loans the day before."},
+    {"title": "Flag-silence streak keeps building, record intact", "body": "It's been 2.1 days since the last unpaid-debt comment (Nov 14), extending the current quiet streak but nowhere near the all-time record 16.0-day gap between flags set Oct 27-Nov 12."},
+    {"title": "Top-2 lender grip barely budges", "body": "BCboneless and asiandaydreamer still account for 30.2% of the $2,821,094 lent across 175 distinct lenders -- essentially unchanged from yesterday despite the week's modest volume pickup."}
   ]
 }
