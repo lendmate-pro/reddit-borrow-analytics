@@ -1,7 +1,7 @@
 {
-  "checked_utc": 1795040245,
+  "checked_utc": 1795043844,
   "ok": false,
   "reasons": [
-    "Only 5 loans in the last 24 hours, against a typical 26 a day."
+    "Only 7 loans in the last 24 hours, against a typical 26 a day."
   ]
 }
