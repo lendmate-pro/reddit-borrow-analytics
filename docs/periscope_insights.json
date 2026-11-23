@@ -1,34 +1,38 @@
 {
-  "generated_at": "2026-11-22T01:47:25Z",
-  "headline": "Loans that have matured since October are defaulting at 68.0%, versus a steady 16.7% from February through August -- a four-fold break in credit quality, not a blip.",
+  "generated_at": "2026-11-23T01:46:24Z",
+  "headline": "The Oct/Nov default wave keeps building -- matured loans from those two months are now defaulting at 70.3%, up from 68.0% a day ago -- while weekly lending volume just hit $37,927, its lowest point in a month.",
   "insights": [
     {
-      "title": "Credit quality just fell off a cliff",
-      "body": "Among loans whose due date has already passed, the default rate held at 16.7% from February through August (7,080 resolved loans), rose to 27.3% in September, then jumped to 68.0% across October-November (799 resolved loans). 362 October/November loans haven't hit their due date yet, so the figure could still shift, but the matured sample is no longer small."
+      "title": "Default wave still building",
+      "body": "Matured October/November loans are defaulting at 70.3% (548 of 780 resolved), up from the 68.0% reported yesterday and still nowhere near the 15-20% baseline that held from February through September. 364 Oct/Nov loans haven't hit their due date yet, so this figure isn't finished moving."
     },
     {
-      "title": "Klutzy-Morning-7921's book quality collapsed in step",
-      "body": "This mid-tier lender (154 loans, $56,955 lifetime) ran a clean 10.0% default rate on resolved loans before Oct 1 (13 defaults of 130 resolved) -- since then it's 42.9% (6 of 14 resolved). It hasn't slowed lending either: wrote three new loans to three different borrowers within 14 minutes on Nov 21 evening ($70, $600, $400)."
+      "title": "Loan sizes just whipsawed",
+      "body": "This week's average loan fell to $308 (123 loans, $37,927 total), down 15.1% from last week's $363 -- breaking the three-week climb toward bigger tickets flagged just yesterday. Weekly volume is also the lowest of the past month."
     },
     {
-      "title": "Volume and deal count both sliding now",
-      "body": "122 loans worth $42,652 posted this week, down from 138 ($45,466) last week and 150 ($47,086) two weeks ago -- a third straight week of fewer, smaller totals. Average ticket size keeps climbing though: $350, up from $329 and $314."
+      "title": "Borrowing got cheaper right as risk spiked",
+      "body": "Average fee on new loans eased to 18.9% this week, down from 20.5% last week and 22.1% three weeks back -- the cheapest week in the past month, even as the matured-loan default rate sits above 70%. Defaulted loans do carry a higher average fee than repaid ones (22.1% vs 20.5%), but not nearly enough to price for what's actually happening."
     },
     {
-      "title": "Cheaper credit flowing into a riskier market",
-      "body": "Average fee on loans written this week eased to 19.1%, down from 20.5% last week and 20.8% two weeks back -- rates keep cooling even as default rates spike. Defaulted loans do carry a slightly higher average fee than repaid ones (22.2% vs 20.5%), but nowhere near enough to price for what's actually happening."
+      "title": "Off-the-books defaults hiding in the comments",
+      "body": "The comment-thread flag log shows keenanmcooper and flames_harden each flagged 4 separate times as unpaid, yet neither appears anywhere in the 9,413-loan formal dataset. Informal comment flagging is catching nonpayment the structured loan records miss entirely."
     },
     {
-      "title": "Top 5 lenders still control 51.9%",
-      "body": "BCboneless ($527,707), asiandaydreamer ($364,253), 10thGroupA ($314,963), NC_Detail ($207,419) and FlashyRaisin9345 ($171,601) hold $1,585,943 of the $3,056,793 ever lent across 182 lenders. 24 new borrowers showed up this week; zero new lenders did."
+      "title": "Biggest loan of the week: $1,600",
+      "body": "NC_Detail lent $1,600 to Tkl15 on Nov 20 at a 25.0% fee for 6 days -- the largest single loan of the past seven days, but barely half of last week's $3,000 top loan."
     },
     {
-      "title": "Biggest loan of the week: $3,000",
-      "body": "10thGroupA sent $3,000 to No-Kaleidoscope-8064 on Nov 15 -- more than 8 times this week's $350 average loan, and the largest single loan written in the past seven days."
+      "title": "Top 5 lenders still control 51.8%",
+      "body": "BCboneless ($527,857), asiandaydreamer ($364,253), 10thGroupA ($314,963), NC_Detail ($207,559) and FlashyRaisin9345 ($171,601) hold $1,586,233 of the $3,063,343 ever lent across 182 lenders -- essentially unchanged from yesterday's 51.9%. 26 new borrowers showed up this week; zero new lenders did."
     },
     {
-      "title": "Overdue book sits at $745,711",
-      "body": "1,965 loans are currently unpaid past their stated term, worth $745,711 -- 24.4% of every dollar ever lent and 20.9% of every loan ever made. With the October/November default surge still working through the system, this number has further to climb before it levels off."
+      "title": "Overdue book basically flat",
+      "body": "$746,176 sits unpaid past term across 1,957 loans -- 24.4% of every dollar ever lent -- almost identical to yesterday's $745,711 across 1,965 loans. The growth in overdue totals has paused for the moment, though the maturing Oct/Nov wave likely hasn't fully worked through it yet."
+    },
+    {
+      "title": "Klutzy-Morning-7921 keeps sliding",
+      "body": "This mid-tier lender's post-Oct-1 default rate rose again to 46.7% (7 of 15 matured), up from 42.9% a day ago, against a clean 9.3% beforehand (12 of 129). Still lending actively too -- its newest loans went out Nov 21 to three different borrowers within 14 minutes."
     }
   ]
 }
