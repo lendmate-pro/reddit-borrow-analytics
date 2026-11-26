@@ -1,8 +1,8 @@
 {
-  "last_cursor": 1795724244,
-  "last_run_utc": "2026-11-26T20:17:34Z",
+  "last_cursor": 1795727843,
+  "last_run_utc": "2026-11-26T21:17:33Z",
   "health": {
-    "ok": true,
-    "last_alert_utc": 1795025848
+    "ok": false,
+    "last_alert_utc": 1795727843
   }
 }
